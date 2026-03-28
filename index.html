@@ -2,208 +2,121 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>민짱 로또 분석기 v6.0</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>민짱 로또 분석기 - 실시간 공유판</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        :root { --primary: #2c3e50; --accent: #f39c12; --success: #27ae60; --light: #f8f9fa; --info: #3498db; }
-        body { font-family: 'Pretendard', sans-serif; background: #f0f2f5; padding: 20px; color: #333; line-height: 1.6; }
-        .container { max-width: 800px; margin: 0 auto; background: white; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); overflow: hidden; }
-        
-        .header { background: var(--primary); color: white; padding: 25px; text-align: center; position: relative; }
-        .reset-db { position: absolute; right: 20px; top: 20px; font-size: 11px; color: #bdc3c7; cursor: pointer; text-decoration: underline; }
-
-        .guide-banner { background: #eef2f7; border-left: 5px solid var(--info); padding: 18px 25px; margin: 20px; border-radius: 8px; font-size: 14px; }
-        .guide-banner h4 { margin: 0 0 8px 0; color: var(--info); }
-        .privacy-note { margin-top: 10px; font-size: 12px; color: #e74c3c; font-weight: bold; }
-
-        .control-panel { padding: 20px; background: #fdfdfd; display: flex; justify-content: center; gap: 20px; align-items: center; border-bottom: 1px solid #eee; }
-        .input-group { display: flex; align-items: center; gap: 8px; }
-        input { padding: 10px; border-radius: 8px; border: 1px solid #ddd; outline: none; }
-        .round-input { width: 80px; font-weight: bold; text-align: center; }
-        .name-input { width: 140px; }
-
-        .content { padding: 25px; }
-        .recommend-item { background: white; border: 1px solid #eee; margin-bottom: 15px; padding: 18px; border-radius: 15px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2px 5px rgba(0,0,0,0.03); }
-        
-        .ball-row { display: flex; gap: 8px; }
-        .ball { width: 34px; height: 34px; line-height: 34px; border-radius: 50%; color: white; font-weight: bold; font-size: 15px; text-align: center; }
-        .c1 { background: linear-gradient(135deg, #fbc400, #f39c12); } 
-        .c11 { background: linear-gradient(135deg, #69c8f2, #3498db); } 
-        .c21 { background: linear-gradient(135deg, #ff7272, #e74c3c); } 
-        .c31 { background: linear-gradient(135deg, #aaa, #7f8c8d); } 
-        .c41 { background: linear-gradient(135deg, #b0d840, #27ae60); }
-
-        .buy-btn { background: var(--success); color: white; border: none; padding: 12px 20px; border-radius: 10px; cursor: pointer; font-weight: bold; }
-
-        .history-section { margin-top: 40px; }
-        .history-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 15px; }
-        .history-table th, .history-table td { padding: 12px 8px; border-bottom: 1px solid #eee; text-align: center; }
-        .history-table th { background: #f8f9fa; color: #777; font-weight: bold; }
-        
-        .main-btn { width: 100%; padding: 18px; background: var(--primary); color: white; border: none; border-radius: 12px; font-size: 20px; font-weight: bold; cursor: pointer; margin-bottom: 30px; transition: 0.3s; }
-        .main-btn:hover { background: #1a252f; }
-        .badge { padding: 4px 10px; border-radius: 20px; background: #edf2f7; font-size: 11px; font-weight: bold; color: #4a5568; }
-        .status-tag { color: #27ae60; font-weight: bold; background: #eafff2; padding: 2px 6px; border-radius: 4px; border: 1px solid #27ae60; }
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap');
+        body { font-family: 'Noto Sans KR', sans-serif; background-color: #f3f4f6; }
+        .lotto-ball { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 14px; text-shadow: 1px 1px 2px rgba(0,0,0,0.5); }
+        .ball-10 { background: #fbc02d; } .ball-20 { background: #1976d2; } .ball-30 { background: #d32f2f; } .ball-40 { background: #7b1fa2; } .ball-45 { background: #388e3c; }
     </style>
 </head>
-<body onload="loadHistory()">
-
-<div class="container">
-    <div class="header">
-        <h1>✨ 민짱 로또 분석기</h1>
-        <span class="reset-db" onclick="clearData()">기록 초기화</span>
-    </div>
-
-    <div class="guide-banner">
-        <h4>🔍 이용 방법 및 개인정보 안내</h4>
-        <ul style="margin:0; padding-left:20px; font-size:13px;">
-            <li><b>분석가명</b>에 본인의 성함을 입력해 주세요.</li>
-            <li>조합 생성 후 <b>[구매 확정]</b> 시 아래 현황판에 실시간으로 기록됩니다.</li>
-            <li>프라이버시를 위해 이름은 <b>'신**'</b> 형태로 자동 변환됩니다.</li>
-        </ul>
-        <div class="privacy-note">※ 기록된 데이터는 브라우저에 안전하게 보관됩니다.</div>
-    </div>
-
-    <div class="control-panel">
-        <div class="input-group">
-            <span>회차:</span>
-            <input type="number" id="lottoRound" class="round-input" value="1217">
+<body class="p-4">
+    <div class="max-w-md mx-auto bg-white rounded-2xl shadow-lg overflow-hidden">
+        <div id="winner-banner" class="bg-yellow-100 p-3 text-center border-b border-yellow-200 hidden">
+            <span class="text-yellow-800 font-bold">🎊 <span id="winner-info">신**님 1216회 당첨!</span> 축하합니다! 🎊</span>
         </div>
-        <div class="input-group">
-            <span>분석가명:</span>
-            <input type="text" id="userName" class="name-input" placeholder="이름을 입력하세요" oninput="saveUserName()">
-        </div>
-    </div>
 
-    <div class="content">
-        <button class="main-btn" onclick="generateFiveSets()">🎯 이번 회차 번호 추천받기 (5조합)</button>
+        <div class="p-6">
+            <h1 class="text-2xl font-bold text-center text-blue-600 mb-6">🎰 민짱 로또 분석기</h1>
+            
+            <div class="mb-4">
+                <input type="text" id="user-name" placeholder="닉네임 입력 (예: 신민수)" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">
+            </div>
 
-        <div id="recommend-list"></div>
+            <button onclick="generateNumbers()" class="w-full bg-blue-600 text-white font-bold py-4 rounded-lg hover:bg-blue-700 transition mb-6">번호 생성 & 구매 확정</button>
 
-        <div class="history-section">
-            <hr style="border:0; height:1px; background:#eee;">
-            <h3 style="color: #2c3e50;">📊 실시간 번호 추천 및 구매 현황</h3>
-            <table class="history-table">
-                <thead>
-                    <tr>
-                        <th>회차</th>
-                        <th>구매 일시</th>
-                        <th>분석가</th>
-                        <th>추천 구매 번호</th>
-                        <th>상태</th>
-                    </tr>
-                </thead>
-                <tbody id="history-body"></tbody>
-            </table>
-            <div id="empty-msg" style="text-align: center; padding: 40px; color: #bbb;">구매 현황 데이터가 없습니다.</div>
-        </div>
-    </div>
-</div>
+            <div id="result-area" class="hidden mb-8">
+                <h2 class="font-bold text-gray-700 mb-3 text-center">오늘의 추천 번호</h2>
+                <div id="balls-container" class="flex justify-around mb-4"></div>
+            </div>
 
-<script>
-    function getBallColor(n) {
-        if (n <= 10) return 'c1'; if (n <= 20) return 'c11'; if (n <= 30) return 'c21'; if (n <= 40) return 'c31'; return 'c41';
-    }
+            <hr class="my-6">
 
-    // 이름 마스킹 (예: 신민수 -> 신**)
-    function maskName(name) {
-        if (!name) return "익명";
-        const trimmed = name.trim();
-        if (trimmed.length <= 1) return trimmed;
-        // 첫 글자 제외하고 모두 * 처리
-        return trimmed[0] + '*'.repeat(trimmed.length - 1);
-    }
-
-    function saveUserName() {
-        localStorage.setItem('minzzang_user', document.getElementById('userName').value);
-    }
-
-    function loadHistory() {
-        const savedName = localStorage.getItem('minzzang_user');
-        if(savedName) document.getElementById('userName').value = savedName;
-
-        const savedHistory = JSON.parse(localStorage.getItem('minzzang_history')) || [];
-        if(savedHistory.length > 0) {
-            document.getElementById('empty-msg').style.display = 'none';
-            // 최신순 정렬 후 표시
-            [...savedHistory].reverse().forEach(data => addRowToTable(data));
-        }
-    }
-
-    function createOneSet() {
-        const balls = [];
-        while(balls.length < 6) {
-            let n = Math.floor(Math.random() * 45) + 1;
-            if(!balls.includes(n)) balls.push(n);
-        }
-        return balls.sort((a, b) => a - b);
-    }
-
-    function generateFiveSets() {
-        const nameInput = document.getElementById('userName');
-        if(!nameInput.value.trim()) { alert("분석가 성함을 입력해 주세요!"); nameInput.focus(); return; }
-
-        const listArea = document.getElementById('recommend-list');
-        const round = document.getElementById('lottoRound').value;
-        listArea.innerHTML = ''; 
-
-        for(let i=1; i<=5; i++) {
-            const set = createOneSet();
-            const setHtml = `
-                <div class="recommend-item">
-                    <div><span class="badge">${round}회 - 추천 ${i}</span></div>
-                    <div class="ball-row">
-                        ${set.map(n => `<div class="ball ${getBallColor(n)}">${n}</div>`).join('')}
-                    </div>
-                    <button class="buy-btn" onclick="confirmPurchase(${round}, '${set.join(', ')}')">구매 확정</button>
+            <div>
+                <h2 class="font-bold text-gray-800 mb-4 flex items-center">
+                    <span class="mr-2">📢</span> 실시간 구매 현황 (공유판)
+                </h2>
+                <div id="live-history" class="space-y-3 max-h-60 overflow-y-auto text-sm text-gray-600">
+                    <p class="text-center text-gray-400">데이터를 불러오는 중...</p>
                 </div>
-            `;
-            listArea.innerHTML += setHtml;
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, query, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // 민짱님이 주신 설정값
+        const firebaseConfig = {
+            apiKey: "AIzaSyCOmZG3eeHBjQpXiEk0CbRgv1yDmA_YIZU",
+            authDomain: "minzzang-7077b.firebaseapp.com",
+            projectId: "minzzang-7077b",
+            storageBucket: "minzzang-7077b.firebasestorage.app",
+            messagingSenderId: "864825081953",
+            appId: "1:864825081953:web:2d288161a1b3d750b92a20"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // 번호 생성 및 DB 저장
+        window.generateNumbers = async function() {
+            const nameInput = document.getElementById('user-name').value;
+            if (!nameInput) { alert("이름을 입력해주세요!"); return; }
+
+            let nums = [];
+            while(nums.length < 6) {
+                let r = Math.floor(Math.random() * 45) + 1;
+                if(!nums.includes(r)) nums.push(r);
+            }
+            nums.sort((a, b) => a - b);
+
+            const maskName = nameInput[0] + "*" + (nameInput[2] || "*");
+
+            try {
+                // 파이어베이스에 저장 (이름은 마스킹 처리해서 저장)
+                await addDoc(collection(db, "lotto_history"), {
+                    userName: maskName,
+                    numbers: nums,
+                    timestamp: new Date()
+                });
+                
+                showBalls(nums);
+            } catch (e) {
+                console.error("저장 실패: ", e);
+                alert("데이터베이스 연결을 확인해주세요! (Firestore 설정 필요)");
+            }
+        };
+
+        function showBalls(nums) {
+            const container = document.getElementById('balls-container');
+            container.innerHTML = '';
+            nums.forEach(n => {
+                const colorClass = n <= 10 ? 'ball-10' : n <= 20 ? 'ball-20' : n <= 30 ? 'ball-30' : n <= 40 ? 'ball-40' : 'ball-45';
+                container.innerHTML += `<div class="lotto-ball ${colorClass}">${n}</div>`;
+            });
+            document.getElementById('result-area').classList.remove('hidden');
         }
-    }
 
-    function confirmPurchase(round, numbers) {
-        const fullName = document.getElementById('userName').value;
-        const masked = maskName(fullName);
-        
-        // 상세 날짜/시간 생성 (2026-03-28 14:05:30 형식)
-        const now = new Date();
-        const dateStr = `${now.getMonth() + 1}/${now.getDate()}`;
-        const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
-        const fullTime = `${dateStr} ${timeStr}`;
-
-        const newData = { round, fullTime, name: masked, numbers };
-
-        const history = JSON.parse(localStorage.getItem('minzzang_history')) || [];
-        history.push(newData);
-        localStorage.setItem('minzzang_history', JSON.stringify(history));
-
-        addRowToTable(newData, true);
-        document.getElementById('empty-msg').style.display = 'none';
-        alert(`[${masked}]님, ${round}회차 추천 번호 구매가 확정되었습니다!`);
-    }
-
-    function addRowToTable(data, isNew = false) {
-        const historyBody = document.getElementById('history-body');
-        const row = `
-            <tr>
-                <td style="font-weight:bold; color:#e74c3c;">${data.round}회</td>
-                <td style="color:#666;">${data.fullTime}</td>
-                <td><b>${data.name}</b></td>
-                <td style="letter-spacing: 0.5px; font-family: monospace; font-weight: 600;">${data.numbers}</td>
-                <td><span class="status-tag">구매완료</span></td>
-            </tr>
-        `;
-        if(isNew) historyBody.insertAdjacentHTML('afterbegin', row);
-        else historyBody.innerHTML += row;
-    }
-
-    function clearData() {
-        if(confirm("기록을 모두 초기화하시겠습니까?")) {
-            localStorage.removeItem('minzzang_history');
-            location.reload();
-        }
-    }
-</script>
-
+        // 실시간 데이터 감시 (친구들 데이터 가져오기)
+        const q = query(collection(db, "lotto_history"), orderBy("timestamp", "desc"), limit(10));
+        onSnapshot(q, (snapshot) => {
+            const historyDiv = document.getElementById('live-history');
+            historyDiv.innerHTML = '';
+            snapshot.forEach((doc) => {
+                const data = doc.data();
+                const time = data.timestamp ? new Date(data.timestamp.toDate()).toLocaleTimeString() : '방금';
+                historyDiv.innerHTML += `
+                    <div class="bg-gray-50 p-2 rounded flex justify-between items-center border-l-4 border-blue-400">
+                        <span><strong>${data.userName}</strong> 님이 구매</span>
+                        <span class="text-xs text-gray-400">${time}</span>
+                    </div>
+                `;
+            });
+        });
+    </script>
 </body>
 </html>
