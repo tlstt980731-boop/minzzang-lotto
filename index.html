@@ -5,26 +5,31 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>민짱 로또 분석기</title>
     <style>
+        /* 기본 설정 (모바일 여백 삐져나옴 방지) */
+        * { box-sizing: border-box; }
         body { font-family: 'Malgun Gothic', sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; background-color: #f4f7f6; }
+        
         header { text-align: center; background: #fff; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; position: relative; }
         h1 { color: #2c3e50; margin-bottom: 10px; }
         
         /* 방문자 통계 스타일 */
-        .stats-container { background: #f8f9fa; padding: 10px; border-radius: 5px; display: inline-block; margin-bottom: 10px; border: 1px solid #e9ecef; }
+        .stats-container { background: #f8f9fa; padding: 10px; border-radius: 5px; display: inline-block; margin-bottom: 10px; border: 1px solid #e9ecef; word-break: keep-all; }
         .stats { color: #495057; font-size: 0.95em; font-weight: bold; }
         .stats span { color: #3498db; margin: 0 5px; }
         
-        .winning-numbers { font-size: 1.2em; font-weight: bold; color: #e74c3c; margin-top: 5px; }
+        .winning-numbers { font-size: 1.2em; font-weight: bold; color: #e74c3c; margin-top: 5px; word-break: keep-all; }
         
         .container { display: flex; gap: 20px; }
-        .box { flex: 1; background: #fff; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .box { background: #fff; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .box-left { flex: 1.3; }
+        .box-right { flex: 0.7; }
         
         /* 5세트 묶음 디자인 */
         .combo-row { display: flex; align-items: center; justify-content: space-between; background: #fdfdfd; padding: 10px; margin-bottom: 10px; border: 1px solid #eee; border-radius: 8px; }
-        .row-label { font-weight: bold; font-size: 1.2em; color: #34495e; width: 30px; }
+        .row-label { font-weight: bold; font-size: 1.2em; color: #34495e; width: 25px; }
         .balls-container { display: flex; gap: 8px; }
         .ball { width: 40px; height: 40px; border-radius: 50%; background: #3498db; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: bold; }
-        .lock-container { display: flex; align-items: center; gap: 5px; font-weight: bold; color: #e74c3c; cursor: pointer; }
+        .lock-container { display: flex; align-items: center; gap: 5px; font-weight: bold; color: #e74c3c; cursor: pointer; white-space: nowrap; }
         
         button { background: #2ecc71; color: white; border: none; padding: 12px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; margin-bottom: 10px; font-size: 1.05em; }
         button:hover { background: #27ae60; }
@@ -50,6 +55,32 @@
         .chat-input-area input { padding: 8px; border: 1px solid #ccc; border-radius: 3px; }
         #chatName { width: 60px; text-align: center; }
         #chatMsg { flex: 1; }
+
+        /* ==================================================== */
+        /* 📱 모바일 화면 대응 (반응형 웹 CSS) */
+        /* ==================================================== */
+        @media (max-width: 768px) {
+            body { padding: 10px; }
+            .container { flex-direction: column; gap: 10px; } /* 좌우 배치를 위아래로 변경 */
+            
+            .stats { font-size: 0.85em; } /* 폰트 크기 축소 */
+            .winning-numbers { font-size: 1em; }
+            
+            .combo-row { padding: 8px 5px; } /* 줄 여백 축소 */
+            .row-label { font-size: 1.1em; width: 15px; }
+            .balls-container { gap: 4px; } /* 공 사이 간격 축소 */
+            .ball { width: 32px; height: 32px; font-size: 0.9em; } /* 모바일에서는 공 크기를 줄임 */
+            .lock-container { font-size: 0.85em; }
+            
+            .share-area { flex-direction: column; } /* 모바일에서는 입력창과 버튼을 위아래로 나눔 */
+            .share-area input { flex: none; width: 100%; margin-bottom: 5px; }
+            .btn-share { width: 100%; }
+        }
+        @media (max-width: 360px) {
+            /* 아주 작은 화면 (예: 아이폰 SE 등) */
+            .ball { width: 28px; height: 28px; font-size: 0.8em; }
+            .balls-container { gap: 2px; }
+        }
     </style>
 </head>
 <body>
@@ -67,7 +98,7 @@
 </header>
 
 <div class="container">
-    <div class="box" style="flex: 1.3;">
+    <div class="box box-left">
         <h3>🎯 로또 분석기</h3>
         <div id="comboContainer">
             </div>
@@ -90,7 +121,7 @@
         </div>
     </div>
 
-    <div class="box" style="flex: 0.7;">
+    <div class="box box-right">
         <div class="board-header">
             <span>실시간 구매 확정 현황</span>
             <button class="btn-delete" id="btnClear">🗑️ 기록삭제</button>
@@ -103,18 +134,14 @@
 <script>
     const labels = ['A', 'B', 'C', 'D', 'E'];
 
-    // [추가됨] 거짓 없는 방문자 카운팅 로직 (로컬 스토리지 기반)
     function updateVisitors() {
-        // 실시간 접속자는 1~3명 사이로 약간의 변동성을 줌 (프론트엔드 환경)
         document.getElementById('realTimeVisitors').innerText = Math.floor(Math.random() * 3) + 1;
 
-        // 누적 방문자 로직
         let totalVisits = localStorage.getItem('totalVisits') || 0;
         totalVisits = parseInt(totalVisits) + 1;
         localStorage.setItem('totalVisits', totalVisits);
         document.getElementById('totalVisitors').innerText = totalVisits;
 
-        // 일일 방문자 로직 (날짜가 바뀌면 1로 초기화)
         let today = new Date().toLocaleDateString();
         let lastVisitDate = localStorage.getItem('lastVisitDate');
         let dailyVisits = localStorage.getItem('dailyVisits') || 0;
@@ -167,7 +194,6 @@
         }
     }
 
-    // 화면 로딩 시 방문자 수 업데이트 및 번호 세팅
     document.addEventListener("DOMContentLoaded", function() {
         updateVisitors();
         generateNumbers(true);
