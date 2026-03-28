@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>민짱 로또 분석기 - PRO 최종판</title>
+    <title>민짱 로또 분석기 - PRO 에러수정판 (V8.0)</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap');
         body { font-family: 'Noto Sans KR', sans-serif; background-color: #f3f4f6; padding-bottom: 60px; }
@@ -17,53 +16,57 @@
         .ball-40 { background: radial-gradient(circle at 30% 30%, #7b1fa2, #4a148c); }
         .ball-45 { background: radial-gradient(circle at 30% 30%, #388e3c, #1b5e20); }
         .chat-bubble { max-width: 80%; padding: 8px 12px; border-radius: 12px; font-size: 13px; position: relative; }
+        .chat-bubble::after { content: ''; position: absolute; bottom: 0; width: 0; height: 0; border: 10px solid transparent; }
+        .chat-other .chat-bubble { background-color: #f1f0f0; color: black; border-bottom-left-radius: 0; }
+        .chat-other .chat-bubble::after { left: -10px; border-right-color: #f1f0f0; border-top: 0; }
         .chat-my .chat-bubble { background-color: #4f46e5; color: white; border-bottom-right-radius: 0; }
-        .chat-other .chat-bubble { background-color: #e5e7eb; color: black; border-bottom-left-radius: 0; }
-        #lotto-capture { padding: 20px; background: white; border-radius: 12px; }
+        .chat-my .chat-bubble::after { right: -10px; border-left-color: #4f46e5; border-top: 0; }
     </style>
 </head>
 <body class="p-4">
     <div class="max-w-md mx-auto bg-white rounded-2xl shadow-lg overflow-hidden border-t-8 border-blue-600 relative">
-        <button onclick="secureReset()" class="absolute top-24 right-4 text-[10px] text-gray-400 hover:text-red-500 transition">기록 초기화</button>
+        <button onclick="secureReset()" class="absolute top-14 right-4 text-[10px] text-gray-400 hover:text-red-500 transition">기록 초기화</button>
 
         <div class="bg-gray-800 p-3 flex justify-around text-center text-white text-[10px]">
-            <div><p class="text-gray-400">실시간</p><p id="online-count" class="text-green-400 font-bold text-sm">1</p></div>
+            <div><p class="text-gray-400">실시간 접속자</p><p id="online-count" class="text-green-400 font-bold text-sm">로딩중</p></div>
             <div class="border-l border-gray-600"></div>
-            <div><p class="text-gray-400">오늘 방문</p><p id="today-count" class="text-blue-300 font-bold text-sm">0</p></div>
+            <div><p class="text-gray-400">누적 방문자</p><p id="total-visit-count" class="text-blue-300 font-bold text-sm">로딩중</p></div>
             <div class="border-l border-gray-600"></div>
-            <div><p class="text-gray-400">누적 방문</p><p id="total-count" class="text-yellow-400 font-bold text-sm">0</p></div>
+            <div><p class="text-gray-400">일일 방문자</p><p id="today-visit-count" class="text-yellow-400 font-bold text-sm">로딩중</p></div>
         </div>
 
         <div id="latest-win-area" class="bg-blue-50 p-4 border-b border-blue-100 text-center">
-            <p class="text-xs font-bold text-blue-600 mb-2">🔥 제 <span id="draw-no">000</span>회 당첨 번호</p>
+            <p class="text-xs font-bold text-blue-600 mb-2">🔥 제 <span id="draw-no">000</span>회 당첨 번호 (자동)</p>
             <div id="win-balls" class="flex justify-center gap-1"></div>
         </div>
 
         <div class="p-6 space-y-6">
-            <h1 class="text-2xl font-bold text-center text-gray-800 mb-2">🎰 민짱 로또 분석기 <span class="text-xs bg-red-500 text-white px-2 py-1 rounded-full">V7.0 FIX</span></h1>
+            <h1 class="text-2xl font-bold text-center text-gray-800 mb-2">🎰 민짱 로또 분석기 PRO <span class="text-xs bg-red-500 text-white px-2 py-1 rounded-full">V8.0 FIXED</span></h1>
             
             <div class="bg-gray-50 p-4 rounded-xl border border-gray-100 shadow-inner">
-                <input type="text" id="user-name" placeholder="닉네임 입력 (예: 신민수)" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 mb-3">
-                <button onclick="analyzeAndGenerate5()" class="w-full bg-gradient-to-r from-blue-600 to-indigo-700 text-white font-bold py-3 rounded-lg shadow-md hover:scale-[1.02] transition">데이터 분석 후 5게임 생성</button>
+                <input type="text" id="user-name" placeholder="닉네임 입력 (예: 신**)" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 mb-3">
+                <button id="generate-btn" onclick="analyzeAndGenerate5()" class="w-full bg-gradient-to-r from-blue-600 to-indigo-700 text-white font-bold py-3 rounded-lg shadow-md hover:scale-[1.02] transition">데이터 분석 후 5게임 생성</button>
             </div>
 
             <div id="result-area" class="hidden space-y-4">
                 <div id="lotto-capture">
-                    <h2 class="font-bold text-center text-blue-800 mb-4">✨ 민짱의 최적 분석 조합 ✨</h2>
-                    <div id="set-1" class="bg-gray-50 p-3 rounded-lg flex justify-around border border-gray-100 mb-2"></div>
-                    <div id="set-2" class="bg-gray-50 p-3 rounded-lg flex justify-around border border-gray-100 mb-2"></div>
-                    <div id="set-3" class="bg-gray-50 p-3 rounded-lg flex justify-around border border-gray-100 mb-2"></div>
-                    <div id="set-4" class="bg-gray-50 p-3 rounded-lg flex justify-around border border-gray-100 mb-2"></div>
-                    <div id="set-5" class="bg-gray-50 p-3 rounded-lg flex justify-around border border-gray-100 mb-2"></div>
+                    <h2 class="font-bold text-center text-blue-800 mb-4">✨ 최적 분석 조합 (5게임) ✨</h2>
+                    <div id="set-1" class="bg-gray-50 p-3 rounded-lg flex justify-around border border-gray-100 shadow-inner mb-2"></div>
+                    <div id="set-2" class="bg-gray-50 p-3 rounded-lg flex justify-around border border-gray-100 shadow-inner mb-2"></div>
+                    <div id="set-3" class="bg-gray-50 p-3 rounded-lg flex justify-around border border-gray-100 shadow-inner mb-2"></div>
+                    <div id="set-4" class="bg-gray-50 p-3 rounded-lg flex justify-around border border-gray-100 shadow-inner mb-2"></div>
+                    <div id="set-5" class="bg-gray-50 p-3 rounded-lg flex justify-around border border-gray-100 shadow-inner mb-2"></div>
                 </div>
-                <button onclick="saveAsImage()" class="w-full bg-gray-600 text-white text-sm py-2 rounded-lg hover:bg-gray-700">📸 이 조합 이미지로 저장</button>
+                <button id="confirm-btn" onclick="confirmPurchase()" class="w-full bg-gradient-to-r from-green-600 to-emerald-700 text-white font-bold py-3 rounded-lg shadow-md hover:scale-[1.02] transition">확인 후 구매 확정</button>
             </div>
 
             <hr class="my-6">
 
             <div>
                 <h2 class="font-bold text-gray-800 mb-4 flex items-center">📢 실시간 구매 현황</h2>
-                <div id="live-history" class="space-y-3 max-h-60 overflow-y-auto text-sm text-gray-600"></div>
+                <div id="live-history" class="space-y-3 max-h-60 overflow-y-auto text-sm text-gray-600">
+                    <p class="text-center text-gray-400">구매 현황 로딩중...</p>
+                </div>
             </div>
 
             <hr class="my-6">
@@ -71,7 +74,8 @@
             <div class="bg-gray-100 p-4 rounded-xl border border-gray-200 shadow-inner">
                 <h2 class="font-bold text-gray-800 mb-3 flex items-center text-sm"><span class="mr-2">💬</span> 민짱의 실시간 채팅방</h2>
                 <div id="chat-messages" class="space-y-3 h-48 overflow-y-auto pr-2 mb-3 flex flex-col">
-                    </div>
+                    <p class="text-center text-gray-400 text-xs">채팅 로딩중...</p>
+                </div>
                 <div class="flex gap-2">
                     <input type="text" id="chat-input" placeholder="메시지 입력..." class="flex-grow p-2 border rounded-lg focus:outline-none text-sm">
                     <button onclick="sendChatMessage()" class="bg-blue-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-blue-700">전송</button>
@@ -82,22 +86,22 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getDatabase, ref, push, onValue, query, limitToLast, set, onDisconnect, get, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+        import { getDatabase, ref, push, set, onValue, onDisconnect, runTransaction, serverTimestamp, query, limitToLast, get } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
         const firebaseConfig = {
-            apiKey: "AIzaSyCOmZG3eeHBjQpXiEk0CbRgv1yDmA_YIZU",
-            authDomain: "minzzang-7077b.firebaseapp.com",
-            databaseURL: "https://minzzang-7077b-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "minzzang-7077b",
-            storageBucket: "minzzang-7077b.firebasestorage.app",
-            messagingSenderId: "864825081953",
-            appId: "1:864825081953:web:2d288161a1b3d750b92a20"
+          apiKey: "AIzaSyCOmZG3eeHBjQpXiEk0CbRgv1yDmA_YIZU",
+          authDomain: "minzzang-7077b.firebaseapp.com",
+          projectId: "minzzang-7077b",
+          storageBucket: "minzzang-7077b.firebasestorage.app",
+          messagingSenderId: "864825081953",
+          appId: "1:864825081953:web:2d288161a1b3d750b92a20",
+          measurementId: "G-3JEYM5QVMX"
         };
 
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // 시간 포맷 함수 (O월 O일 O시 O분)
+        // O월 O일 O시 O분 포맷 함수
         function formatTime(ms) {
             const d = new Date(ms);
             return `${d.getMonth() + 1}월 ${d.getDate()}일 ${d.getHours()}시 ${d.getMinutes()}분`;
@@ -126,41 +130,46 @@
         }
         fetchLotto();
 
-        // --- 방문자 카운터 (오류 수정판) ---
+        // --- 방문자 카운터 (FIX: Transaction 및 정확한 ID 적용) ---
         const todayStr = new Date().toISOString().split('T')[0];
-        const onlineRef = ref(db, 'status/online_users');
-        const totalRef = ref(db, 'status/total_visit');
-        const todayRef = ref(db, 'status/today_visit/' + todayStr);
+        const onlineUsersRef = ref(db, 'presence');
+        const totalVisitsRef = ref(db, 'stats/total_visits');
+        const todayVisitsRef = ref(db, 'stats/today_visits/' + todayStr);
         
-        const myPresenceRef = push(onlineRef);
+        // 1. 실시간 접속자 (Unique push per session)
+        const myPresenceRef = push(onlineUsersRef);
         onDisconnect(myPresenceRef).remove();
         set(myPresenceRef, true);
         
-        onValue(onlineRef, (snap) => document.getElementById('online-count').innerText = snap.size || 1);
+        onValue(onlineUsersRef, (snapshot) => {
+            document.getElementById('online-count').innerText = snapshot.size || 1;
+        });
         
-        // 누적/오늘 방문자 안전하게 증가
-        get(totalRef).then((snap) => { set(totalRef, (snap.val() || 0) + 1); });
-        get(todayRef).then((snap) => { set(todayRef, (snap.val() || 0) + 1); });
+        // 2. 누적 및 오늘 방문자 (runTransaction으로 안전하게 증가)
+        runTransaction(totalVisitsRef, (currValue) => (currValue || 0) + 1);
+        runTransaction(todayVisitsRef, (currValue) => (currValue || 0) + 1);
         
-        onValue(totalRef, (snap) => document.getElementById('total-count').innerText = snap.val() || 0);
-        onValue(todayRef, (snap) => document.getElementById('today-count').innerText = snap.val() || 0);
+        // UI 업데이트
+        onValue(totalVisitsRef, (snap) => document.getElementById('total-visit-count').innerText = snap.val() || 0);
+        onValue(todayVisitsRef, (snap) => document.getElementById('today-visit-count').innerText = snap.val() || 0);
 
         // --- 보안 초기화 (0732) ---
         window.secureReset = function() {
             const pw = prompt("관리자 비밀번호를 입력하세요.");
             if (pw === "0732") {
                 if (confirm("정말로 모든 기록을 초기화하시겠습니까?")) {
-                    remove(ref(db, 'status'));
+                    remove(ref(db, 'stats'));
                     remove(ref(db, 'lotto_history'));
                     remove(ref(db, 'chat_messages'));
+                    remove(ref(db, 'presence'));
                     alert("초기화 완료!");
                     location.reload();
                 }
             } else { alert("비밀번호 불일치!"); }
         };
 
-        // --- 실시간 채팅창 (오류 수정판) ---
-        const chatRef = query(ref(db, 'chat_messages'), limitToLast(50));
+        // --- 실시간 채팅창 (FIX: 크롬 에러timestamp undefined 수정) ---
+        const chatRef = query(ref(db, 'chat_messages'), limitToLast(20));
         onValue(chatRef, (snapshot) => {
             const chatDiv = document.getElementById('chat-messages');
             chatDiv.innerHTML = '';
@@ -170,11 +179,12 @@
                     const timeStr = formatTime(msg.timestamp);
                     const currentName = document.getElementById('user-name').value || "익명";
                     const isMyMsg = msg.userName === currentName;
-                    
+                    const maskedName = msg.userName.length > 0 ? msg.userName.charAt(0) + "**" : "**";
+
                     chatDiv.innerHTML += `
                         <div class="flex flex-col ${isMyMsg ? 'items-end' : 'items-start'} mb-2 ${isMyMsg ? 'chat-my' : 'chat-other'}">
-                            ${!isMyMsg ? `<span class="text-[10px] text-gray-500 ml-1 mb-1">${msg.userName}</span>` : ''}
-                            <div class="chat-bubble shadow-sm">
+                            ${!isMyMsg ? `<span class="text-[10px] text-gray-500 ml-1 mb-1">${maskedName}</span>` : ''}
+                            <div class="chat-bubble shadow-inner">
                                 ${msg.text}
                             </div>
                             <span class="text-[9px] text-gray-400 mt-1">${timeStr}</span>
@@ -190,10 +200,11 @@
             const name = document.getElementById('user-name').value || "익명";
             const text = input.value.trim();
             if(!text) return;
+            // FIX: push 내부에 serverTimestamp()를 사용해야 크롬 에러가 안 납니다.
             push(ref(db, 'chat_messages'), {
                 userName: name,
                 text: text,
-                timestamp: Date.now() // 확실한 시간 저장
+                timestamp: serverTimestamp() 
             });
             input.value = '';
         };
@@ -202,13 +213,15 @@
             if(e.key === 'Enter') sendChatMessage();
         });
 
-        // --- 번호 생성 및 현황 로직 ---
+        // --- 번호 생성 및 현황 로직 (FIX: 저장 삭제 -> 구매 확정 연동) ---
         const hotNumbers = [1, 13, 17, 27, 34, 43, 12, 18, 45, 33];
+        let currentGeneratedNumbers = []; // Store state for confirmation
+
         window.analyzeAndGenerate5 = function() {
             const nameInput = document.getElementById('user-name').value;
             if (!nameInput) { alert("이름을 입력해주세요!"); return; }
             
-            let allSets = [];
+            currentGeneratedNumbers = [];
             for(let i=1; i<=5; i++){
                 let nums = [];
                 while(nums.length < 2) {
@@ -220,15 +233,28 @@
                     if(!nums.includes(r)) nums.push(r);
                 }
                 nums.sort((a, b) => a - b);
-                allSets.push(nums);
+                currentGeneratedNumbers.push(nums);
                 showBalls(nums, 'set-'+i);
             }
             
-            // 이름 마스킹: 첫 글자 + ** (예: 신민수 -> 신**)
+            document.getElementById('result-area').classList.remove('hidden');
+        };
+
+        // NEW: 확인 후 구매 확정 버튼 로직
+        window.confirmPurchase = function() {
+            const nameInput = document.getElementById('user-name').value;
+            if (!nameInput) { alert("이름을 입력해주세요!"); return; }
+            
+            // 이름 마스킹: 신민수 -> 신**
             const maskName = nameInput.length > 0 ? nameInput.charAt(0) + "**" : "**";
             
-            push(ref(db, 'lotto_history'), { userName: maskName, timestamp: Date.now() });
-            document.getElementById('result-area').classList.remove('hidden');
+            push(ref(db, 'lotto_history'), { userName: maskName, numbers: currentGeneratedNumbers, timestamp: serverTimestamp() });
+            
+            // UI 초기화 (결과창 숨기고, 입력창 비우고)
+            document.getElementById('result-area').classList.add('hidden');
+            document.getElementById('user-name').value = '';
+            
+            alert("구매가 확정되어 실시간 현황에 게시되었습니다!");
         };
 
         function showBalls(nums, containerId) {
@@ -240,6 +266,7 @@
             });
         }
 
+        // 실시간 구매 현황 리스너
         const historyRef = query(ref(db, 'lotto_history'), limitToLast(10));
         onValue(historyRef, (snapshot) => {
             const historyDiv = document.getElementById('live-history');
@@ -247,28 +274,17 @@
             const data = snapshot.val();
             if (data) {
                 Object.values(data).reverse().forEach(item => {
-                    // 지정하신 날짜/시간 포맷 적용
                     const timeStr = formatTime(item.timestamp);
                     historyDiv.innerHTML += `
-                        <div class="bg-gray-50 p-3 rounded-lg flex justify-between items-center border-l-4 border-indigo-400 shadow-sm">
+                        <div class="bg-gray-50 p-3 rounded-lg flex justify-between items-center border-l-4 border-indigo-400 shadow-sm mb-2">
                             <span class="font-bold text-gray-700">구매자 ${item.userName}</span>
                             <span class="text-xs text-gray-500">${timeStr}</span>
                         </div>`;
                 });
+            } else {
+                historyDiv.innerHTML = '<p class="text-center text-gray-400 text-xs">최근 구매 현황이 없습니다.</p>';
             }
         });
-
-        // --- 이미지로 저장 기능 ---
-        window.saveAsImage = function() {
-            const name = document.getElementById('user-name').value || "익명";
-            const captureArea = document.getElementById('lotto-capture');
-            html2canvas(captureArea).then(canvas => {
-                const link = document.createElement('a');
-                link.download = `민짱로또분석_${name}_${new Date().toLocaleDateString()}.png`;
-                link.href = canvas.toDataURL();
-                link.click();
-            });
-        };
     </script>
 </body>
 </html>
