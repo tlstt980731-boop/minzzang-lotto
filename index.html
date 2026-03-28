@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>민짱 로또 분석기</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
     <style>
         * { box-sizing: border-box; }
         body { font-family: 'Malgun Gothic', sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; background-color: #f4f7f6; }
@@ -50,7 +54,6 @@
         #chatName { width: 60px; text-align: center; }
         #chatMsg { flex: 1; }
 
-        /* 모바일 반응형 */
         @media (max-width: 768px) {
             body { padding: 10px; }
             .container { flex-direction: column; gap: 10px; }
@@ -64,10 +67,6 @@
             .share-area { flex-direction: column; }
             .share-area input { flex: none; width: 100%; margin-bottom: 5px; }
             .btn-share { width: 100%; }
-        }
-        @media (max-width: 360px) {
-            .ball { width: 28px; height: 28px; font-size: 0.8em; }
-            .balls-container { gap: 2px; }
         }
     </style>
 </head>
@@ -96,7 +95,9 @@
         </div>
 
         <h3 style="margin-top: 30px;">💬 실시간 채팅</h3>
-        <div class="chat-box" id="chatBox"></div>
+        <div class="chat-box" id="chatBox">
+            <div><strong style="color: #3498db;">시스템:</strong> 익명 채팅방에 오신 것을 환영합니다!</div>
+        </div>
         <div class="chat-input-area">
             <input type="text" id="chatName" placeholder="닉네임" value="민짱">
             <input type="text" id="chatMsg" placeholder="메시지를 입력하세요" onkeypress="if(event.keyCode==13) document.getElementById('btnChat').click()">
@@ -114,56 +115,85 @@
 </div>
 
 <script>
+    // --------------------------------------------------------
+    // [중요] 형의 진짜 파이어베이스 서버 연결!
+    // --------------------------------------------------------
+    const firebaseConfig = {
+        databaseURL: "https://minzzang-7077b-default-rtdb.asia-southeast1.firebasedatabase.app/"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+    // --------------------------------------------------------
+
     const labels = ['A', 'B', 'C', 'D', 'E'];
 
-    // 로컬 스토리지 데이터 불러오기
-    let boardItems = JSON.parse(localStorage.getItem('lottoBoardItems')) || [];
-    let chatItems = JSON.parse(localStorage.getItem('lottoChatItems')) || [
-        '<div><strong style="color: #3498db;">시스템:</strong> 익명 채팅방에 오신 것을 환영합니다!</div>'
-    ];
+    // 1. 방문자 통계 실시간 처리
+    function setupVisitors() {
+        const today = new Date().toLocaleDateString('ko-KR').replace(/\. /g, '-').replace(/\./g, ''); 
+        
+        const connectedRef = database.ref('.info/connected');
+        const statusRef = database.ref('status');
+        
+        connectedRef.on('value', (snap) => {
+            if (snap.val() === true) {
+                // 실시간 접속자 추가
+                const con = statusRef.push();
+                con.onDisconnect().remove();
+                con.set(true);
+                
+                // 누적 방문자 
+                if (!localStorage.getItem('hasVisitedTotal')) {
+                    database.ref('stats/total').set(firebase.database.ServerValue.increment(1));
+                    localStorage.setItem('hasVisitedTotal', 'true');
+                }
+                
+                // 일일 방문자
+                if (localStorage.getItem('lastVisitDate') !== today) {
+                    database.ref('stats/daily/' + today).set(firebase.database.ServerValue.increment(1));
+                    localStorage.setItem('lastVisitDate', today);
+                }
+            }
+        });
 
-    // 게시판 렌더링 함수
-    function renderBoard() {
+        // 화면에 뿌려주기
+        statusRef.on('value', snap => {
+            document.getElementById('realTimeVisitors').innerText = snap.numChildren() || 1;
+        });
+        database.ref('stats/total').on('value', snap => {
+            document.getElementById('totalVisitors').innerText = snap.val() || 1;
+        });
+        database.ref('stats/daily/' + today).on('value', snap => {
+            document.getElementById('dailyVisitors').innerText = snap.val() || 1;
+        });
+    }
+
+    // 2. 실시간 게시판 불러오기
+    database.ref('board_items').orderByChild('timestamp').limitToLast(30).on('value', (snapshot) => {
         const boardList = document.getElementById('lottoList');
         boardList.innerHTML = '';
-        boardItems.forEach(item => {
+        const items = [];
+        snapshot.forEach((childSnap) => { items.push(childSnap.val()); });
+        
+        // 최신 글이 위로 오도록 역순 정렬
+        items.reverse().forEach(item => {
             let div = document.createElement('div');
             div.className = 'board-item';
             div.innerHTML = `<div class="board-item-title">${item.title}</div><div class="board-item-combo">${item.combo}</div>`;
             boardList.appendChild(div);
         });
-    }
+    });
 
-    // 채팅 렌더링 함수
-    function renderChat() {
+    // 3. 실시간 채팅 불러오기
+    database.ref('chat_messages').limitToLast(50).on('child_added', (snapshot) => {
+        const data = snapshot.val();
         const chatBox = document.getElementById('chatBox');
-        chatBox.innerHTML = chatItems.join('');
+        let newChat = document.createElement('div');
+        newChat.innerHTML = `<strong>${data.name} :</strong> ${data.msg}`;
+        chatBox.appendChild(newChat);
         chatBox.scrollTop = chatBox.scrollHeight;
-    }
+    });
 
-    // 방문자 수 업데이트 로직
-    function updateVisitors() {
-        document.getElementById('realTimeVisitors').innerText = Math.floor(Math.random() * 3) + 1;
-        let totalVisits = localStorage.getItem('totalVisits') || 0;
-        totalVisits = parseInt(totalVisits) + 1;
-        localStorage.setItem('totalVisits', totalVisits);
-        document.getElementById('totalVisitors').innerText = totalVisits;
-
-        let today = new Date().toLocaleDateString();
-        let lastVisitDate = localStorage.getItem('lastVisitDate');
-        let dailyVisits = localStorage.getItem('dailyVisits') || 0;
-
-        if (lastVisitDate !== today) {
-            dailyVisits = 1;
-            localStorage.setItem('lastVisitDate', today);
-        } else {
-            dailyVisits = parseInt(dailyVisits) + 1;
-        }
-        localStorage.setItem('dailyVisits', dailyVisits);
-        document.getElementById('dailyVisitors').innerText = dailyVisits;
-    }
-
-    // 로또 번호 생성 함수
+    // 로또 번호 생성 로직
     function getRandomLotto() {
         let nums = [];
         while(nums.length < 6) {
@@ -173,7 +203,6 @@
         return nums.sort((a,b) => a - b);
     }
 
-    // 분석기 화면 업데이트 함수
     function generateNumbers(isInitial = false) {
         const container = document.getElementById('comboContainer');
         if (isInitial) {
@@ -203,26 +232,20 @@
         }
     }
 
-    // 초기 화면 세팅
+    // 초기 실행
     document.addEventListener("DOMContentLoaded", function() {
-        updateVisitors();
+        setupVisitors();
         generateNumbers(true);
-        renderBoard(); // 저장된 게시판 불러오기
-        renderChat();  // 저장된 채팅 불러오기
     });
 
-    // 로또 분석 하기 버튼
     document.getElementById("btnAnalyze").addEventListener("click", function() {
         generateNumbers(false);
     });
 
-    // 확정된 5게임 공유 버튼 (저장 기능 추가)
+    // 서버로 공유(저장) 하기
     document.getElementById("btnShare").addEventListener("click", function() {
         let pName = document.getElementById('purchaserName').value.trim();
-        if(!pName) {
-            alert('구매자 이름을 입력해주세요! (예: 신민수)');
-            return;
-        }
+        if(!pName) { alert('구매자 이름을 입력해주세요! (예: 신민수)'); return; }
 
         let maskedName = pName.length > 1 ? pName.charAt(0) + "*".repeat(pName.length - 1) : pName + "*";
         let comboText = '';
@@ -232,33 +255,29 @@
             comboText += `${label}: ${nums}<br>`;
         });
         
-        // 새로운 데이터를 배열 맨 앞에 추가하고 로컬 스토리지에 저장
-        let newItem = {
+        // 서버 DB에 쏴주기!
+        database.ref('board_items').push({
             title: `${maskedName} 님의 확정 조합 (방금 전)`,
-            combo: comboText
-        };
-        boardItems.unshift(newItem); 
-        localStorage.setItem('lottoBoardItems', JSON.stringify(boardItems));
+            combo: comboText,
+            timestamp: firebase.database.ServerValue.TIMESTAMP
+        });
         
-        renderBoard(); // 화면 다시 그리기
         alert('확정된 5게임이 게시판에 공유되었습니다!');
         document.getElementById('purchaserName').value = ''; 
     });
 
-    // 게시판 기록 삭제 버튼 (저장소 데이터도 삭제)
+    // 관리자 게시판 서버 기록 삭제 (0732)
     document.getElementById("btnClear").addEventListener("click", function() {
         let password = prompt("게시판 기록을 삭제하시겠습니까?\n관리자 비밀번호를 입력해주세요.");
         if (password === "0732") {
-            boardItems = []; // 배열 초기화
-            localStorage.removeItem('lottoBoardItems'); // 저장소 초기화
-            renderBoard(); // 화면 지우기
+            database.ref('board_items').remove(); // 서버에서 데이터 싹 삭제
             alert("게시판 기록이 성공적으로 삭제되었습니다.");
         } else if (password !== null) {
             alert("비밀번호가 틀렸습니다.");
         }
     });
 
-    // 채팅 전송 버튼 (저장 기능 추가)
+    // 서버로 채팅 전송
     document.getElementById("btnChat").addEventListener("click", function() {
         let nameInput = document.getElementById('chatName').value.trim();
         let msgInput = document.getElementById('chatMsg').value.trim();
@@ -266,13 +285,13 @@
 
         let maskedName = nameInput.length > 1 ? nameInput.charAt(0) + "*".repeat(nameInput.length - 1) : nameInput + "*";
         
-        let newChat = `<div><strong>${maskedName} :</strong> ${msgInput}</div>`;
+        // 서버 DB 채팅방으로 전송!
+        database.ref('chat_messages').push({
+            name: maskedName,
+            msg: msgInput,
+            timestamp: firebase.database.ServerValue.TIMESTAMP
+        });
         
-        // 채팅 데이터를 배열에 추가하고 로컬 스토리지에 저장
-        chatItems.push(newChat);
-        localStorage.setItem('lottoChatItems', JSON.stringify(chatItems));
-        
-        renderChat(); // 화면 다시 그리기
         document.getElementById('chatMsg').value = '';
     });
 
