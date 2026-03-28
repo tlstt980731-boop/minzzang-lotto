@@ -5,14 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>민짱 로또 분석기</title>
     <style>
-        /* 기본 설정 (모바일 여백 삐져나옴 방지) */
         * { box-sizing: border-box; }
         body { font-family: 'Malgun Gothic', sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; background-color: #f4f7f6; }
         
         header { text-align: center; background: #fff; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; position: relative; }
         h1 { color: #2c3e50; margin-bottom: 10px; }
         
-        /* 방문자 통계 스타일 */
         .stats-container { background: #f8f9fa; padding: 10px; border-radius: 5px; display: inline-block; margin-bottom: 10px; border: 1px solid #e9ecef; word-break: keep-all; }
         .stats { color: #495057; font-size: 0.95em; font-weight: bold; }
         .stats span { color: #3498db; margin: 0 5px; }
@@ -24,7 +22,6 @@
         .box-left { flex: 1.3; }
         .box-right { flex: 0.7; }
         
-        /* 5세트 묶음 디자인 */
         .combo-row { display: flex; align-items: center; justify-content: space-between; background: #fdfdfd; padding: 10px; margin-bottom: 10px; border: 1px solid #eee; border-radius: 8px; }
         .row-label { font-weight: bold; font-size: 1.2em; color: #34495e; width: 25px; }
         .balls-container { display: flex; gap: 8px; }
@@ -34,13 +31,11 @@
         button { background: #2ecc71; color: white; border: none; padding: 12px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; margin-bottom: 10px; font-size: 1.05em; }
         button:hover { background: #27ae60; }
         
-        /* 공유 영역 디자인 */
         .share-area { display: flex; gap: 10px; margin-top: 15px; margin-bottom: 10px; }
         .share-area input { flex: 0.4; padding: 10px; border: 1px solid #ccc; border-radius: 5px; text-align: center; font-weight: bold; }
         .btn-share { flex: 1; background: #e67e22; margin-bottom: 0; }
         .btn-share:hover { background: #d35400; }
 
-        /* 게시판 UI */
         .board-header { display: flex; justify-content: space-between; align-items: center; font-size: 1.1em; font-weight: bold; margin-bottom: 15px; color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
         .btn-delete { background: #e74c3c; font-size: 0.8em; padding: 5px 10px; width: auto; margin: 0; }
         .btn-delete:hover { background: #c0392b; }
@@ -49,35 +44,28 @@
         .board-item-title { font-weight: bold; color: #e74c3c; margin-bottom: 8px; font-size: 1.05em; }
         .board-item-combo { margin-left: 10px; color: #2c3e50; line-height: 1.6; }
 
-        /* 채팅방 UI */
         .chat-box { height: 200px; border: 1px solid #ddd; border-radius: 5px; overflow-y: auto; padding: 10px; margin-bottom: 10px; background: #fff; }
         .chat-input-area { display: flex; gap: 5px; }
         .chat-input-area input { padding: 8px; border: 1px solid #ccc; border-radius: 3px; }
         #chatName { width: 60px; text-align: center; }
         #chatMsg { flex: 1; }
 
-        /* ==================================================== */
-        /* 📱 모바일 화면 대응 (반응형 웹 CSS) */
-        /* ==================================================== */
+        /* 모바일 반응형 */
         @media (max-width: 768px) {
             body { padding: 10px; }
-            .container { flex-direction: column; gap: 10px; } /* 좌우 배치를 위아래로 변경 */
-            
-            .stats { font-size: 0.85em; } /* 폰트 크기 축소 */
+            .container { flex-direction: column; gap: 10px; }
+            .stats { font-size: 0.85em; }
             .winning-numbers { font-size: 1em; }
-            
-            .combo-row { padding: 8px 5px; } /* 줄 여백 축소 */
+            .combo-row { padding: 8px 5px; }
             .row-label { font-size: 1.1em; width: 15px; }
-            .balls-container { gap: 4px; } /* 공 사이 간격 축소 */
-            .ball { width: 32px; height: 32px; font-size: 0.9em; } /* 모바일에서는 공 크기를 줄임 */
+            .balls-container { gap: 4px; }
+            .ball { width: 32px; height: 32px; font-size: 0.9em; }
             .lock-container { font-size: 0.85em; }
-            
-            .share-area { flex-direction: column; } /* 모바일에서는 입력창과 버튼을 위아래로 나눔 */
+            .share-area { flex-direction: column; }
             .share-area input { flex: none; width: 100%; margin-bottom: 5px; }
             .btn-share { width: 100%; }
         }
         @media (max-width: 360px) {
-            /* 아주 작은 화면 (예: 아이폰 SE 등) */
             .ball { width: 28px; height: 28px; font-size: 0.8em; }
             .balls-container { gap: 2px; }
         }
@@ -87,21 +75,18 @@
 
 <header>
     <h1>민짱 로또 분석기</h1>
-    
     <div class="stats-container">
         <div class="stats">
             실시간 접속자: <span id="realTimeVisitors">1</span>명 | 일일 방문자: <span id="dailyVisitors">1</span>명 | 누적 방문자수: <span id="totalVisitors">1</span>명
         </div>
     </div>
-    
     <div class="winning-numbers">1217회 당첨번호: 8 10 15 20 29 31 + 41</div>
 </header>
 
 <div class="container">
     <div class="box box-left">
         <h3>🎯 로또 분석기</h3>
-        <div id="comboContainer">
-            </div>
+        <div id="comboContainer"></div>
         
         <button id="btnAnalyze">🔄 로또 분석 하기</button>
         
@@ -111,9 +96,7 @@
         </div>
 
         <h3 style="margin-top: 30px;">💬 실시간 채팅</h3>
-        <div class="chat-box" id="chatBox">
-            <div><strong style="color: #3498db;">시스템:</strong> 익명 채팅방에 오신 것을 환영합니다!</div>
-        </div>
+        <div class="chat-box" id="chatBox"></div>
         <div class="chat-input-area">
             <input type="text" id="chatName" placeholder="닉네임" value="민짱">
             <input type="text" id="chatMsg" placeholder="메시지를 입력하세요" onkeypress="if(event.keyCode==13) document.getElementById('btnChat').click()">
@@ -126,17 +109,41 @@
             <span>실시간 구매 확정 현황</span>
             <button class="btn-delete" id="btnClear">🗑️ 기록삭제</button>
         </div>
-        <div id="lottoList">
-            </div>
+        <div id="lottoList"></div>
     </div>
 </div>
 
 <script>
     const labels = ['A', 'B', 'C', 'D', 'E'];
 
+    // 로컬 스토리지 데이터 불러오기
+    let boardItems = JSON.parse(localStorage.getItem('lottoBoardItems')) || [];
+    let chatItems = JSON.parse(localStorage.getItem('lottoChatItems')) || [
+        '<div><strong style="color: #3498db;">시스템:</strong> 익명 채팅방에 오신 것을 환영합니다!</div>'
+    ];
+
+    // 게시판 렌더링 함수
+    function renderBoard() {
+        const boardList = document.getElementById('lottoList');
+        boardList.innerHTML = '';
+        boardItems.forEach(item => {
+            let div = document.createElement('div');
+            div.className = 'board-item';
+            div.innerHTML = `<div class="board-item-title">${item.title}</div><div class="board-item-combo">${item.combo}</div>`;
+            boardList.appendChild(div);
+        });
+    }
+
+    // 채팅 렌더링 함수
+    function renderChat() {
+        const chatBox = document.getElementById('chatBox');
+        chatBox.innerHTML = chatItems.join('');
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    // 방문자 수 업데이트 로직
     function updateVisitors() {
         document.getElementById('realTimeVisitors').innerText = Math.floor(Math.random() * 3) + 1;
-
         let totalVisits = localStorage.getItem('totalVisits') || 0;
         totalVisits = parseInt(totalVisits) + 1;
         localStorage.setItem('totalVisits', totalVisits);
@@ -156,6 +163,7 @@
         document.getElementById('dailyVisitors').innerText = dailyVisits;
     }
 
+    // 로또 번호 생성 함수
     function getRandomLotto() {
         let nums = [];
         while(nums.length < 6) {
@@ -165,6 +173,7 @@
         return nums.sort((a,b) => a - b);
     }
 
+    // 분석기 화면 업데이트 함수
     function generateNumbers(isInitial = false) {
         const container = document.getElementById('comboContainer');
         if (isInitial) {
@@ -194,25 +203,28 @@
         }
     }
 
+    // 초기 화면 세팅
     document.addEventListener("DOMContentLoaded", function() {
         updateVisitors();
         generateNumbers(true);
+        renderBoard(); // 저장된 게시판 불러오기
+        renderChat();  // 저장된 채팅 불러오기
     });
 
+    // 로또 분석 하기 버튼
     document.getElementById("btnAnalyze").addEventListener("click", function() {
         generateNumbers(false);
     });
 
+    // 확정된 5게임 공유 버튼 (저장 기능 추가)
     document.getElementById("btnShare").addEventListener("click", function() {
         let pName = document.getElementById('purchaserName').value.trim();
-        
         if(!pName) {
             alert('구매자 이름을 입력해주세요! (예: 신민수)');
             return;
         }
 
         let maskedName = pName.length > 1 ? pName.charAt(0) + "*".repeat(pName.length - 1) : pName + "*";
-
         let comboText = '';
         labels.forEach((label, index) => {
             const balls = document.querySelectorAll(`#balls-${index} .ball`);
@@ -220,45 +232,47 @@
             comboText += `${label}: ${nums}<br>`;
         });
         
-        let boardList = document.getElementById('lottoList');
-        let newItem = document.createElement('div');
-        newItem.className = 'board-item';
+        // 새로운 데이터를 배열 맨 앞에 추가하고 로컬 스토리지에 저장
+        let newItem = {
+            title: `${maskedName} 님의 확정 조합 (방금 전)`,
+            combo: comboText
+        };
+        boardItems.unshift(newItem); 
+        localStorage.setItem('lottoBoardItems', JSON.stringify(boardItems));
         
-        newItem.innerHTML = `
-            <div class="board-item-title">${maskedName} 님의 확정 조합 (방금 전)</div>
-            <div class="board-item-combo">${comboText}</div>
-        `;
-        
-        boardList.insertBefore(newItem, boardList.firstChild);
-        
+        renderBoard(); // 화면 다시 그리기
         alert('확정된 5게임이 게시판에 공유되었습니다!');
         document.getElementById('purchaserName').value = ''; 
     });
 
+    // 게시판 기록 삭제 버튼 (저장소 데이터도 삭제)
     document.getElementById("btnClear").addEventListener("click", function() {
         let password = prompt("게시판 기록을 삭제하시겠습니까?\n관리자 비밀번호를 입력해주세요.");
-        
         if (password === "0732") {
-            document.getElementById('lottoList').innerHTML = '';
+            boardItems = []; // 배열 초기화
+            localStorage.removeItem('lottoBoardItems'); // 저장소 초기화
+            renderBoard(); // 화면 지우기
             alert("게시판 기록이 성공적으로 삭제되었습니다.");
         } else if (password !== null) {
             alert("비밀번호가 틀렸습니다.");
         }
     });
 
+    // 채팅 전송 버튼 (저장 기능 추가)
     document.getElementById("btnChat").addEventListener("click", function() {
         let nameInput = document.getElementById('chatName').value.trim();
         let msgInput = document.getElementById('chatMsg').value.trim();
         if(!nameInput || !msgInput) return;
 
         let maskedName = nameInput.length > 1 ? nameInput.charAt(0) + "*".repeat(nameInput.length - 1) : nameInput + "*";
-
-        let chatBox = document.getElementById('chatBox');
-        let newChat = document.createElement('div');
-        newChat.innerHTML = `<strong>${maskedName} :</strong> ${msgInput}`;
         
-        chatBox.appendChild(newChat);
-        chatBox.scrollTop = chatBox.scrollHeight;
+        let newChat = `<div><strong>${maskedName} :</strong> ${msgInput}</div>`;
+        
+        // 채팅 데이터를 배열에 추가하고 로컬 스토리지에 저장
+        chatItems.push(newChat);
+        localStorage.setItem('lottoChatItems', JSON.stringify(chatItems));
+        
+        renderChat(); // 화면 다시 그리기
         document.getElementById('chatMsg').value = '';
     });
 
