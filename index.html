@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>민짱 로또 분석기 - AI 통계 버전 (5개 조합)</title>
+    <title>민짱 로또 분석기 - PRO (보안강화)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap');
@@ -17,10 +17,20 @@
     </style>
 </head>
 <body class="p-4">
-    <div class="max-w-md mx-auto bg-white rounded-2xl shadow-lg overflow-hidden border-t-8 border-blue-600">
+    <div class="max-w-md mx-auto bg-white rounded-2xl shadow-lg overflow-hidden border-t-8 border-blue-600 relative">
+        <button onclick="secureReset()" class="absolute top-14 right-4 text-[10px] text-gray-400 hover:text-red-500 transition">기록 초기화</button>
+
+        <div class="bg-gray-800 p-3 flex justify-around text-center text-white text-[10px]">
+            <div><p class="text-gray-400">실시간</p><p id="online-count" class="text-green-400 font-bold text-sm">1</p></div>
+            <div class="border-l border-gray-600"></div>
+            <div><p class="text-gray-400">오늘 방문</p><p id="today-count" class="text-blue-300 font-bold text-sm">0</p></div>
+            <div class="border-l border-gray-600"></div>
+            <div><p class="text-gray-400">누적 방문</p><p id="total-count" class="text-yellow-400 font-bold text-sm">0</p></div>
+        </div>
+
         <div class="p-6">
-            <h1 class="text-2xl font-bold text-center text-gray-800 mb-2">🎰 민짱 로또 분석기 <span class="text-xs bg-red-500 text-white px-2 py-1 rounded-full">V3.0 AI분석</span></h1>
-            <p class="text-center text-xs text-gray-400 mb-6">최근 10개년 당첨 가중치 데이터 반영됨 (5개 조합)</p>
+            <h1 class="text-2xl font-bold text-center text-gray-800 mb-2">🎰 민짱 로또 분석기 <span class="text-xs bg-red-500 text-white px-2 py-1 rounded-full">V4.1 SECURE</span></h1>
+            <p class="text-center text-xs text-gray-400 mb-6">데이터 분석 기반 5게임 추천 시스템</p>
             
             <div class="mb-4">
                 <input type="text" id="user-name" placeholder="닉네임 입력 (예: 신민수)" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">
@@ -30,11 +40,11 @@
 
             <div id="result-area" class="hidden mb-8 space-y-4">
                 <h2 class="font-bold text-center text-blue-800">✨ 최적 분석 조합 (5게임) ✨</h2>
-                <div id="set-1" class="bg-gray-50 p-3 rounded-lg flex justify-around"></div>
-                <div id="set-2" class="bg-gray-50 p-3 rounded-lg flex justify-around"></div>
-                <div id="set-3" class="bg-gray-50 p-3 rounded-lg flex justify-around"></div>
-                <div id="set-4" class="bg-gray-50 p-3 rounded-lg flex justify-around"></div>
-                <div id="set-5" class="bg-gray-50 p-3 rounded-lg flex justify-around"></div>
+                <div id="set-1" class="bg-gray-50 p-3 rounded-lg flex justify-around border border-gray-100"></div>
+                <div id="set-2" class="bg-gray-50 p-3 rounded-lg flex justify-around border border-gray-100"></div>
+                <div id="set-3" class="bg-gray-50 p-3 rounded-lg flex justify-around border border-gray-100"></div>
+                <div id="set-4" class="bg-gray-50 p-3 rounded-lg flex justify-around border border-gray-100"></div>
+                <div id="set-5" class="bg-gray-50 p-3 rounded-lg flex justify-around border border-gray-100"></div>
             </div>
 
             <hr class="my-6">
@@ -47,7 +57,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getDatabase, ref, push, onValue, query, limitToLast } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+        import { getDatabase, ref, push, onValue, query, limitToLast, set, onDisconnect, runTransaction, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCOmZG3eeHBjQpXiEk0CbRgv1yDmA_YIZU",
@@ -62,9 +72,39 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // 자주 나오는 번호 가중치 (1, 13, 17, 27, 34, 43 등 통계 반영)
-        const hotNumbers = [1, 13, 17, 27, 34, 43, 12, 18, 45, 33];
+        // --- 방문자 및 실시간 상태 ---
+        const todayStr = new Date().toISOString().split('T')[0];
+        const onlineRef = ref(db, 'status/online_users');
+        const totalRef = ref(db, 'status/total_visit');
+        const todayRef = ref(db, 'status/today_visit/' + todayStr);
 
+        const myPresenceRef = push(onlineRef);
+        onDisconnect(myPresenceRef).remove();
+        set(myPresenceRef, true);
+
+        onValue(onlineRef, (snap) => document.getElementById('online-count').innerText = snap.size || 1);
+        runTransaction(totalRef, (curr) => (curr || 0) + 1);
+        runTransaction(todayRef, (curr) => (curr || 0) + 1);
+        onValue(totalRef, (snap) => document.getElementById('total-count').innerText = snap.val() || 0);
+        onValue(todayRef, (snap) => document.getElementById('today-count').innerText = snap.val() || 0);
+
+        // --- 보안 초기화 로직 ---
+        window.secureReset = function() {
+            const pw = prompt("관리자 비밀번호를 입력하세요.");
+            if (pw === "0732") {
+                if (confirm("정말로 모든 방문 기록과 번호 생성 이력을 초기화하시겠습니까?")) {
+                    remove(ref(db, 'status'));
+                    remove(ref(db, 'lotto_history'));
+                    alert("모든 데이터가 초기화되었습니다. 페이지를 새로고침하세요.");
+                    location.reload();
+                }
+            } else {
+                alert("비밀번호가 틀렸습니다!");
+            }
+        };
+
+        // --- 번호 생성 로직 ---
+        const hotNumbers = [1, 13, 17, 27, 34, 43, 12, 18, 45, 33];
         window.analyzeAndGenerate5 = function() {
             const nameInput = document.getElementById('user-name').value;
             if (!nameInput) { alert("이름을 입력해주세요!"); return; }
@@ -72,7 +112,6 @@
             let allSets = [];
             for(let i=1; i<=5; i++){
                 let nums = [];
-                // 가중치 적용 로직: 2개는 자주 나오는 번호에서, 4개는 완전 랜덤에서 추출
                 while(nums.length < 2) {
                     let r = hotNumbers[Math.floor(Math.random() * hotNumbers.length)];
                     if(!nums.includes(r)) nums.push(r);
@@ -83,16 +122,10 @@
                 }
                 nums.sort((a, b) => a - b);
                 allSets.push(nums);
-                showBalls(nums, 'set-'+i); // 각 세트별로 공 보여주기
+                showBalls(nums, 'set-'+i);
             }
-
             const maskName = nameInput.length > 2 ? nameInput[0] + "*" + nameInput[nameInput.length - 1] : nameInput[0] + "*";
-
-            push(ref(db, 'lotto_history'), {
-                userName: maskName,
-                numbers: allSets, // 5개 조합 전체 저장
-                timestamp: Date.now()
-            });
+            push(ref(db, 'lotto_history'), { userName: maskName, timestamp: Date.now() });
             document.getElementById('result-area').classList.remove('hidden');
         };
 
@@ -101,26 +134,4 @@
             container.innerHTML = '';
             nums.forEach(n => {
                 const colorClass = n <= 10 ? 'ball-10' : n <= 20 ? 'ball-20' : n <= 30 ? 'ball-30' : n <= 40 ? 'ball-40' : 'ball-45';
-                container.innerHTML += `<div class="lotto-ball ${colorClass}">${n}</div>`;
-            });
-        }
-
-        const historyRef = query(ref(db, 'lotto_history'), limitToLast(10));
-        onValue(historyRef, (snapshot) => {
-            const historyDiv = document.getElementById('live-history');
-            historyDiv.innerHTML = '';
-            const data = snapshot.val();
-            if (data) {
-                Object.values(data).reverse().forEach(item => {
-                    const time = new Date(item.timestamp).toLocaleTimeString();
-                    historyDiv.innerHTML += `
-                        <div class="bg-gray-50 p-2 rounded flex justify-between items-center border-l-4 border-indigo-400">
-                            <span><strong>${item.userName}</strong> 님이 5게임 분석 번호 수령</span>
-                            <span class="text-xs text-gray-400">${time}</span>
-                        </div>`;
-                });
-            }
-        });
-    </script>
-</body>
-</html>
+                container.innerHTML += `<div class
