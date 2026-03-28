@@ -14,32 +14,26 @@
 </head>
 <body class="p-4">
     <div class="max-w-md mx-auto bg-white rounded-2xl shadow-lg overflow-hidden">
-        <div id="winner-banner" class="bg-yellow-100 p-3 text-center border-b border-yellow-200 hidden">
-            <span class="text-yellow-800 font-bold">🎊 <span id="winner-info">신**님 1216회 당첨!</span> 축하합니다! 🎊</span>
+        <div id="winner-banner" class="bg-yellow-100 p-3 text-center border-b border-yellow-200">
+            <span class="text-yellow-800 font-bold">🎊 <span id="winner-info">1216회 당첨자 신*수님 축하드립니다!</span> 🎊</span>
         </div>
 
         <div class="p-6">
             <h1 class="text-2xl font-bold text-center text-blue-600 mb-6">🎰 민짱 로또 분석기</h1>
-            
             <div class="mb-4">
                 <input type="text" id="user-name" placeholder="닉네임 입력 (예: 신민수)" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">
             </div>
-
             <button onclick="generateNumbers()" class="w-full bg-blue-600 text-white font-bold py-4 rounded-lg hover:bg-blue-700 transition mb-6">번호 생성 & 구매 확정</button>
 
-            <div id="result-area" class="hidden mb-8">
-                <h2 class="font-bold text-gray-700 mb-3 text-center">오늘의 추천 번호</h2>
+            <div id="result-area" class="hidden mb-8 text-center">
+                <h2 class="font-bold text-gray-700 mb-3">추천 번호</h2>
                 <div id="balls-container" class="flex justify-around mb-4"></div>
             </div>
-
             <hr class="my-6">
-
             <div>
-                <h2 class="font-bold text-gray-800 mb-4 flex items-center">
-                    <span class="mr-2">📢</span> 실시간 구매 현황 (공유판)
-                </h2>
+                <h2 class="font-bold text-gray-800 mb-4 flex items-center"><span class="mr-2">📢</span> 실시간 구매 현황</h2>
                 <div id="live-history" class="space-y-3 max-h-60 overflow-y-auto text-sm text-gray-600">
-                    <p class="text-center text-gray-400">데이터를 불러오는 중...</p>
+                    <p class="text-center text-gray-400">데이터를 기다리는 중...</p>
                 </div>
             </div>
         </div>
@@ -47,12 +41,12 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, query, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getDatabase, ref, push, onValue, query, limitToLast } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-        // 민짱님이 주신 설정값
         const firebaseConfig = {
             apiKey: "AIzaSyCOmZG3eeHBjQpXiEk0CbRgv1yDmA_YIZU",
             authDomain: "minzzang-7077b.firebaseapp.com",
+            databaseURL: "https://minzzang-7077b-default-rtdb.asia-southeast1.firebasedatabase.app",
             projectId: "minzzang-7077b",
             storageBucket: "minzzang-7077b.firebasestorage.app",
             messagingSenderId: "864825081953",
@@ -60,10 +54,9 @@
         };
 
         const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
+        const db = getDatabase(app);
 
-        // 번호 생성 및 DB 저장
-        window.generateNumbers = async function() {
+        window.generateNumbers = function() {
             const nameInput = document.getElementById('user-name').value;
             if (!nameInput) { alert("이름을 입력해주세요!"); return; }
 
@@ -73,22 +66,14 @@
                 if(!nums.includes(r)) nums.push(r);
             }
             nums.sort((a, b) => a - b);
+            const maskName = nameInput.length > 2 ? nameInput[0] + "*" + nameInput[nameInput.length - 1] : nameInput[0] + "*";
 
-            const maskName = nameInput[0] + "*" + (nameInput[2] || "*");
-
-            try {
-                // 파이어베이스에 저장 (이름은 마스킹 처리해서 저장)
-                await addDoc(collection(db, "lotto_history"), {
-                    userName: maskName,
-                    numbers: nums,
-                    timestamp: new Date()
-                });
-                
-                showBalls(nums);
-            } catch (e) {
-                console.error("저장 실패: ", e);
-                alert("데이터베이스 연결을 확인해주세요! (Firestore 설정 필요)");
-            }
+            push(ref(db, 'lotto_history'), {
+                userName: maskName,
+                numbers: nums,
+                timestamp: Date.now()
+            });
+            showBalls(nums);
         };
 
         function showBalls(nums) {
@@ -101,21 +86,21 @@
             document.getElementById('result-area').classList.remove('hidden');
         }
 
-        // 실시간 데이터 감시 (친구들 데이터 가져오기)
-        const q = query(collection(db, "lotto_history"), orderBy("timestamp", "desc"), limit(10));
-        onSnapshot(q, (snapshot) => {
+        const historyRef = query(ref(db, 'lotto_history'), limitToLast(10));
+        onValue(historyRef, (snapshot) => {
             const historyDiv = document.getElementById('live-history');
             historyDiv.innerHTML = '';
-            snapshot.forEach((doc) => {
-                const data = doc.data();
-                const time = data.timestamp ? new Date(data.timestamp.toDate()).toLocaleTimeString() : '방금';
-                historyDiv.innerHTML += `
-                    <div class="bg-gray-50 p-2 rounded flex justify-between items-center border-l-4 border-blue-400">
-                        <span><strong>${data.userName}</strong> 님이 구매</span>
-                        <span class="text-xs text-gray-400">${time}</span>
-                    </div>
-                `;
-            });
+            const data = snapshot.val();
+            if (data) {
+                Object.values(data).reverse().forEach(item => {
+                    const time = new Date(item.timestamp).toLocaleTimeString();
+                    historyDiv.innerHTML += `
+                        <div class="bg-gray-50 p-2 rounded flex justify-between items-center border-l-4 border-blue-400">
+                            <span><strong>${item.userName}</strong> 님이 번호 생성!</span>
+                            <span class="text-xs text-gray-400">${time}</span>
+                        </div>`;
+                });
+            }
         });
     </script>
 </body>
