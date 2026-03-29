@@ -50,6 +50,7 @@
         .board-item { padding: 15px 10px; border-bottom: 1px solid #eee; font-size: 0.95em; background: #fafafa; border-radius: 5px; margin-bottom: 10px; }
         .board-item-title { font-weight: bold; color: #e74c3c; margin-bottom: 8px; font-size: 1.05em; }
         .board-item-combo { margin-left: 10px; color: #2c3e50; line-height: 1.6; }
+        .board-item-time { font-size: 0.8em; color: #95a5a6; font-weight: normal; margin-left: 5px; }
 
         .hit-number { color: #e74c3c; font-weight: bold; font-size: 1.1em; text-decoration: underline; }
         .bonus-number { color: #3498db; font-weight: bold; font-size: 1.1em; text-decoration: underline; }
@@ -90,7 +91,6 @@
             실시간 접속자: <span id="realTimeVisitors">1</span>명 | 일일 방문자: <span id="dailyVisitors">1</span>명 | 누적 방문자수: <span id="totalVisitors">1</span>명
         </div>
     </div>
-    
     <div class="winning-numbers">1217회 당첨번호: 8 10 15 20 29 31 + 41</div>
 </header>
 
@@ -98,17 +98,13 @@
     <div class="box box-left">
         <h3>🎯 로또 분석기</h3>
         <div id="comboContainer"></div>
-        
         <button onclick="generateNumbers(false)">🔄 로또 분석 하기</button>
-        
         <div class="share-area">
             <input type="text" id="purchaserName" placeholder="구매자 이름 (예: 신**)">
             <button class="btn-share" onclick="shareCombination()">📢 확정된 5게임 게시판에 공유</button>
         </div>
-
         <h3 style="margin-top: 30px;">💬 실시간 채팅</h3>
-        <div class="chat-box" id="chatBox">
-            </div>
+        <div class="chat-box" id="chatBox"></div>
         <div class="chat-input-area">
             <input type="text" id="chatName" placeholder="닉네임" value="민짱">
             <input type="text" id="chatMsg" placeholder="메시지를 입력하세요" onkeypress="if(event.keyCode==13) sendChat()">
@@ -124,22 +120,18 @@
                 <button class="btn-delete" onclick="clearChat()">🗑️ 기록삭제</button>
             </div>
         </div>
-        
         <div id="hallOfFame">
             <h4>🎉 이번 주 명예의 전당</h4>
             <div id="winnerListContent"></div>
         </div>
-
         <div id="lottoList"></div>
     </div>
 </div>
 
 <script>
-    // 당첨 번호 설정
     const winNums = [8, 10, 15, 20, 29, 31]; 
     const bonusNum = 41;                     
 
-    // 파이어베이스 설정
     const firebaseConfig = {
         databaseURL: "https://minzzang-7077b-default-rtdb.asia-southeast1.firebasedatabase.app/"
     };
@@ -149,16 +141,23 @@
     const labels = ['A', 'B', 'C', 'D', 'E'];
     let currentBoardData = []; 
 
-    // 1. 방문자 통계 업데이트 (새로고침 시 무조건 증가하도록 세팅)
+    // 시간 포맷 함수 (MM월 DD일 HH:mm)
+    function getFormattedDate(timestamp) {
+        let d = timestamp ? new Date(timestamp) : new Date();
+        let month = (d.getMonth() + 1).toString().padStart(2, '0');
+        let day = d.getDate().toString().padStart(2, '0');
+        let hour = d.getHours().toString().padStart(2, '0');
+        let min = d.getMinutes().toString().padStart(2, '0');
+        return `${month}월 ${day}일 ${hour}:${min}`;
+    }
+
+    // 1. 방문자 통계 업데이트
     function setupVisitors() {
-        // 날짜 에러 방지용 안전한 코드 적용
         let d = new Date();
         const today = d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate();
-        
         const connectedRef = database.ref('.info/connected');
         const statusRef = database.ref('status');
         
-        // 무조건 방문자수 +1
         database.ref('stats/total').set(firebase.database.ServerValue.increment(1));
         database.ref('stats/daily/' + today).set(firebase.database.ServerValue.increment(1));
 
@@ -175,7 +174,7 @@
         database.ref('stats/daily/' + today).on('value', snap => { document.getElementById('dailyVisitors').innerText = snap.val() || 1; });
     }
 
-    // 2. 실시간 게시판 불러오기
+    // 2. 실시간 게시판 불러오기 (날짜/시간 표시 수정)
     database.ref('board_items').orderByChild('timestamp').limitToLast(50).on('value', (snapshot) => {
         const boardList = document.getElementById('lottoList');
         boardList.innerHTML = '';
@@ -189,9 +188,15 @@
         
         items.reverse().forEach(item => {
             currentBoardData.push(item);
+            let timeStr = getFormattedDate(item.timestamp); // 서버 시간으로 변환
             let div = document.createElement('div');
             div.className = 'board-item';
-            div.innerHTML = `<div class="board-item-title">${item.title}</div><div class="board-item-combo" id="combo-${item.key}">${item.combo}</div>`;
+            div.innerHTML = `
+                <div class="board-item-title">
+                    ${item.title} 
+                    <span class="board-item-time">(${timeStr})</span>
+                </div>
+                <div class="board-item-combo" id="combo-${item.key}">${item.combo}</div>`;
             boardList.appendChild(div);
         });
     });
@@ -200,10 +205,8 @@
     database.ref('chat_messages').limitToLast(50).on('value', (snapshot) => {
         const chatBox = document.getElementById('chatBox');
         chatBox.innerHTML = '<div><strong style="color: #3498db;">시스템:</strong> 익명 채팅방에 오신 것을 환영합니다!</div>';
-        
         snapshot.forEach((childSnap) => {
             const data = childSnap.val();
-            // 빈 데이터 방어 코드 적용
             if(data && data.name && data.msg) {
                 let newChat = document.createElement('div');
                 newChat.innerHTML = `<strong>${data.name} :</strong> ${data.msg}`;
@@ -213,7 +216,6 @@
         chatBox.scrollTop = chatBox.scrollHeight;
     });
 
-    // 번호 생성 로직
     function getRandomLotto() {
         let nums = [];
         while(nums.length < 6) {
@@ -223,7 +225,6 @@
         return nums.sort((a,b) => a - b);
     }
 
-    // [버튼 1] 분석하기 함수
     function generateNumbers(isInitial = false) {
         const container = document.getElementById('comboContainer');
         if (isInitial) {
@@ -250,11 +251,10 @@
         }
     }
 
-    // [버튼 2] 공유하기 함수
+    // 공유하기 (서버 타임스탬프 추가)
     function shareCombination() {
         let pName = document.getElementById('purchaserName').value.trim();
         if(!pName) { alert('구매자 이름을 입력해주세요! (예: 신민수)'); return; }
-
         let maskedName = pName.length > 1 ? pName.charAt(0) + "*".repeat(pName.length - 1) : pName + "*";
         let comboText = '';
         labels.forEach((label, index) => {
@@ -262,147 +262,97 @@
             const nums = Array.from(balls).map(b => b.innerText).join(', ');
             comboText += `${label}: ${nums}<br>`;
         });
-        
         database.ref('board_items').push({
-            title: `${maskedName} 님의 확정 조합 (방금 전)`,
+            title: `${maskedName} 님의 확정 조합`,
             combo: comboText,
-            timestamp: firebase.database.ServerValue.TIMESTAMP
+            timestamp: firebase.database.ServerValue.TIMESTAMP // 이게 있어야 정확한 시간이 나옴
         });
-        
-        alert('확정된 5게임이 게시판에 공유되었습니다!');
+        alert('성공적으로 게시판에 공유되었습니다!');
         document.getElementById('purchaserName').value = ''; 
     }
 
-    // [버튼 3] 채팅만 기록 삭제 함수
     function clearChat() {
         let password = prompt("채팅 기록을 삭제하시겠습니까?\n관리자 비밀번호를 입력해주세요.");
         if (password === "0732") {
             database.ref('chat_messages').remove(); 
-            alert("채팅 기록이 성공적으로 삭제되었습니다.");
+            alert("삭제되었습니다.");
         } else if (password !== null) {
-            alert("비밀번호가 틀렸습니다.");
+            alert("틀렸습니다.");
         }
     }
 
-    // [버튼 4] 채팅 전송 함수
     function sendChat() {
         let nameInput = document.getElementById('chatName').value.trim();
         let msgInput = document.getElementById('chatMsg').value.trim();
         if(!nameInput || !msgInput) return;
-
         let maskedName = nameInput.length > 1 ? nameInput.charAt(0) + "*".repeat(nameInput.length - 1) : nameInput + "*";
-        
         database.ref('chat_messages').push({
             name: maskedName, msg: msgInput, timestamp: firebase.database.ServerValue.TIMESTAMP
         });
-        
         document.getElementById('chatMsg').value = '';
     }
 
-    // [버튼 5] 당첨 확인 함수
     function checkWin() {
-        if(currentBoardData.length === 0) {
-            alert("공유된 조합이 없습니다!");
-            return;
-        }
-
+        if(currentBoardData.length === 0) { alert("데이터가 없습니다."); return; }
         let winners = { rank1: [], rank2: [], rank3: [], rank4: [], rank5: [] };
         let totalWins = 0;
-
         currentBoardData.forEach(item => {
             let lines = item.combo.split('<br>');
             let highestRank = 6; 
-            
             let formattedLines = lines.map(line => {
                 if(!line.trim()) return '';
                 let parts = line.split(': ');
                 let label = parts[0];
                 let numsStr = parts[1].split(', ');
-                
-                let matchCount = 0;
-                let hasBonus = false;
-
+                let matchCount = 0; let hasBonus = false;
                 let formattedNums = numsStr.map(n => {
                     let num = parseInt(n);
-                    if(winNums.includes(num)) {
-                        matchCount++;
-                        return `<span class="hit-number">${num}</span>`; 
-                    }
-                    if(num === bonusNum) {
-                        hasBonus = true;
-                        return `<span class="bonus-number">${num}</span>`; 
-                    }
+                    if(winNums.includes(num)) { matchCount++; return `<span class="hit-number">${num}</span>`; }
+                    if(num === bonusNum) { hasBonus = true; return `<span class="bonus-number">${num}</span>`; }
                     return num;
                 });
-                
                 let rank = 0;
                 if(matchCount === 6) rank = 1;
                 else if(matchCount === 5 && hasBonus) rank = 2;
                 else if(matchCount === 5) rank = 3;
                 else if(matchCount === 4) rank = 4;
                 else if(matchCount === 3) rank = 5;
-
                 if(rank > 0 && rank < highestRank) highestRank = rank;
-                
-                let rankText = '';
-                if(rank === 1) rankText = ' <strong style="color:red;">[🎉 1등 당첨!!]</strong>';
-                else if(rank === 2) rankText = ' <strong style="color:#e67e22;">[🎊 2등 당첨!]</strong>';
-                else if(rank === 3) rankText = ' <strong style="color:#f1c40f;">[3등]</strong>';
-                else if(rank === 4) rankText = ' <strong style="color:#3498db;">[4등]</strong>';
-                else if(rank === 5) rankText = ' <strong style="color:#2ecc71;">[5등]</strong>';
-
+                let rankText = rank === 1 ? ' <strong style="color:red;">[🎉 1등!]</strong>' : rank === 2 ? ' <strong style="color:#e67e22;">[🎊 2등!]</strong>' : rank === 3 ? ' <strong style="color:#f1c40f;">[3등]</strong>' : rank === 4 ? ' <strong style="color:#3498db;">[4등]</strong>' : rank === 5 ? ' <strong style="color:#2ecc71;">[5등]</strong>' : '';
                 return `${label}: ${formattedNums.join(', ')}${rankText}`;
             });
-
             document.getElementById(`combo-${item.key}`).innerHTML = formattedLines.join('<br>');
-
             let nameMatch = item.title.match(/^(.*?) 님의/);
             let name = nameMatch ? nameMatch[1] : '익명';
-
             if(highestRank === 1) winners.rank1.push(name);
             else if(highestRank === 2) winners.rank2.push(name);
             else if(highestRank === 3) winners.rank3.push(name);
             else if(highestRank === 4) winners.rank4.push(name);
             else if(highestRank === 5) winners.rank5.push(name);
-
             if(highestRank <= 5) totalWins++;
         });
-
         const hallOfFame = document.getElementById('hallOfFame');
         const winnerListContent = document.getElementById('winnerListContent');
-        
         hallOfFame.style.display = 'block'; 
         if(totalWins > 0) {
             let html = '<ul>';
-            if(winners.rank1.length) html += `<li><strong>🥇 1등:</strong> ${winners.rank1.join(', ')} 님</li>`;
-            if(winners.rank2.length) html += `<li><strong>🥈 2등:</strong> ${winners.rank2.join(', ')} 님</li>`;
-            if(winners.rank3.length) html += `<li><strong>🥉 3등:</strong> ${winners.rank3.join(', ')} 님</li>`;
-            if(winners.rank4.length) html += `<li><strong>4등:</strong> ${winners.rank4.join(', ')} 님</li>`;
-            if(winners.rank5.length) html += `<li><strong>5등:</strong> ${winners.rank5.join(', ')} 님</li>`;
+            if(winners.rank1.length) html += `<li><strong>🥇 1등:</strong> ${winners.rank1.join(', ')}</li>`;
+            if(winners.rank2.length) html += `<li><strong>🥈 2등:</strong> ${winners.rank2.join(', ')}</li>`;
+            if(winners.rank3.length) html += `<li><strong>🥉 3등:</strong> ${winners.rank3.join(', ')}</li>`;
+            if(winners.rank4.length) html += `<li><strong>4등:</strong> ${winners.rank4.length}명</li>`;
+            if(winners.rank5.length) html += `<li><strong>5등:</strong> ${winners.rank5.length}명</li>`;
             html += '</ul>';
             winnerListContent.innerHTML = html;
         } else {
-            winnerListContent.innerHTML = '<p style="margin:0; color:#856404;">아쉽게도 이번 주 당첨자가 없습니다. 다음 주를 기약하세요!</p>';
+            winnerListContent.innerHTML = '<p>이번 주 당첨자가 없습니다.</p>';
         }
-
-        let popupMsg = "🎯 당첨 결과 요약 🎯\n\n";
-        if(winners.rank1.length) popupMsg += `🥇 1등: ${winners.rank1.join(', ')} 님\n`;
-        if(winners.rank2.length) popupMsg += `🥈 2등: ${winners.rank2.join(', ')} 님\n`;
-        if(winners.rank3.length) popupMsg += `🥉 3등: ${winners.rank3.join(', ')} 님\n`;
-        if(winners.rank4.length) popupMsg += `4등: ${winners.rank4.length}명\n`;
-        if(winners.rank5.length) popupMsg += `5등: ${winners.rank5.length}명\n`;
-        
-        if(totalWins === 0) popupMsg += "당첨자가 없습니다. 다음 기회를 노려보세요!";
-        
-        setTimeout(() => { alert(popupMsg); }, 500);
+        setTimeout(() => { alert("당첨 확인이 완료되었습니다!"); }, 500);
     }
 
-    // 실행 시작!
     document.addEventListener("DOMContentLoaded", function() {
         setupVisitors();
         generateNumbers(true);
     });
-
 </script>
 
 </body>
