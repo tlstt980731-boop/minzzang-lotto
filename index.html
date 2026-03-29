@@ -50,7 +50,7 @@
         .board-item { padding: 15px 10px; border-bottom: 1px solid #eee; font-size: 0.95em; background: #fafafa; border-radius: 5px; margin-bottom: 10px; }
         .board-item-title { font-weight: bold; color: #e74c3c; margin-bottom: 8px; font-size: 1.05em; }
         .board-item-combo { margin-left: 10px; color: #2c3e50; line-height: 1.6; }
-        .board-item-time { font-size: 0.8em; color: #95a5a6; font-weight: normal; margin-left: 5px; }
+        .board-item-time { font-size: 0.85em; color: #95a5a6; font-weight: normal; margin-left: 5px; }
 
         .hit-number { color: #e74c3c; font-weight: bold; font-size: 1.1em; text-decoration: underline; }
         .bonus-number { color: #3498db; font-weight: bold; font-size: 1.1em; text-decoration: underline; }
@@ -148,7 +148,7 @@
         let day = d.getDate().toString().padStart(2, '0');
         let hour = d.getHours().toString().padStart(2, '0');
         let min = d.getMinutes().toString().padStart(2, '0');
-        return `${month}월 ${day}일 ${hour}:${min}`;
+        return `[${month}월 ${day}일 ${hour}:${min}]`;
     }
 
     // 1. 방문자 통계 업데이트
@@ -174,7 +174,7 @@
         database.ref('stats/daily/' + today).on('value', snap => { document.getElementById('dailyVisitors').innerText = snap.val() || 1; });
     }
 
-    // 2. 실시간 게시판 불러오기 (날짜/시간 표시 수정)
+    // 2. 실시간 게시판 불러오기 ("방금 전" 삭제 버전)
     database.ref('board_items').orderByChild('timestamp').limitToLast(50).on('value', (snapshot) => {
         const boardList = document.getElementById('lottoList');
         boardList.innerHTML = '';
@@ -188,13 +188,13 @@
         
         items.reverse().forEach(item => {
             currentBoardData.push(item);
-            let timeStr = getFormattedDate(item.timestamp); // 서버 시간으로 변환
+            let timeStr = getFormattedDate(item.timestamp);
             let div = document.createElement('div');
             div.className = 'board-item';
             div.innerHTML = `
                 <div class="board-item-title">
                     ${item.title} 
-                    <span class="board-item-time">(${timeStr})</span>
+                    <span class="board-item-time">${timeStr}</span>
                 </div>
                 <div class="board-item-combo" id="combo-${item.key}">${item.combo}</div>`;
             boardList.appendChild(div);
@@ -251,7 +251,6 @@
         }
     }
 
-    // 공유하기 (서버 타임스탬프 추가)
     function shareCombination() {
         let pName = document.getElementById('purchaserName').value.trim();
         if(!pName) { alert('구매자 이름을 입력해주세요! (예: 신민수)'); return; }
@@ -265,7 +264,7 @@
         database.ref('board_items').push({
             title: `${maskedName} 님의 확정 조합`,
             combo: comboText,
-            timestamp: firebase.database.ServerValue.TIMESTAMP // 이게 있어야 정확한 시간이 나옴
+            timestamp: firebase.database.ServerValue.TIMESTAMP
         });
         alert('성공적으로 게시판에 공유되었습니다!');
         document.getElementById('purchaserName').value = ''; 
