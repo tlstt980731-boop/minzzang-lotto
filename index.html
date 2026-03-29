@@ -99,11 +99,11 @@
         <h3>🎯 로또 분석기</h3>
         <div id="comboContainer"></div>
         
-        <button id="btnAnalyze">🔄 로또 분석 하기</button>
+        <button onclick="generateNumbers(false)">🔄 로또 분석 하기</button>
         
         <div class="share-area">
             <input type="text" id="purchaserName" placeholder="구매자 이름 (예: 신**)">
-            <button class="btn-share" id="btnShare">📢 확정된 5게임 게시판에 공유</button>
+            <button class="btn-share" onclick="shareCombination()">📢 확정된 5게임 게시판에 공유</button>
         </div>
 
         <h3 style="margin-top: 30px;">💬 실시간 채팅</h3>
@@ -111,8 +111,8 @@
             </div>
         <div class="chat-input-area">
             <input type="text" id="chatName" placeholder="닉네임" value="민짱">
-            <input type="text" id="chatMsg" placeholder="메시지를 입력하세요" onkeypress="if(event.keyCode==13) document.getElementById('btnChat').click()">
-            <button id="btnChat" style="width: 60px; margin-bottom: 0;">전송</button>
+            <input type="text" id="chatMsg" placeholder="메시지를 입력하세요" onkeypress="if(event.keyCode==13) sendChat()">
+            <button onclick="sendChat()" style="width: 60px; margin-bottom: 0;">전송</button>
         </div>
     </div>
 
@@ -120,8 +120,8 @@
         <div class="board-header">
             <span>실시간 구매 확정 현황</span>
             <div class="btn-group">
-                <button class="btn-check" id="btnCheckWin">🏆 당첨 확인</button>
-                <button class="btn-delete" id="btnClear">🗑️ 기록삭제</button>
+                <button class="btn-check" onclick="checkWin()">🏆 당첨 확인</button>
+                <button class="btn-delete" onclick="clearChat()">🗑️ 기록삭제</button>
             </div>
         </div>
         
@@ -135,9 +135,11 @@
 </div>
 
 <script>
+    // 당첨 번호 설정
     const winNums = [8, 10, 15, 20, 29, 31]; 
     const bonusNum = 41;                     
 
+    // 파이어베이스 설정
     const firebaseConfig = {
         databaseURL: "https://minzzang-7077b-default-rtdb.asia-southeast1.firebasedatabase.app/"
     };
@@ -147,13 +149,16 @@
     const labels = ['A', 'B', 'C', 'D', 'E'];
     let currentBoardData = []; 
 
-    // 1. 방문자 통계 업데이트 (새로고침 시 무조건 증가하도록 변경)
+    // 1. 방문자 통계 업데이트 (새로고침 시 무조건 증가하도록 세팅)
     function setupVisitors() {
-        const today = new Date().toLocaleDateString('ko-KR').replace(/\. /g, '-').replace(/\./g, ''); 
+        // 날짜 에러 방지용 안전한 코드 적용
+        let d = new Date();
+        const today = d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate();
+        
         const connectedRef = database.ref('.info/connected');
         const statusRef = database.ref('status');
         
-        // 새로고침할 때마다 일일/누적 방문자 +1 씩 정직하게(?) 쑥쑥 올라감
+        // 무조건 방문자수 +1
         database.ref('stats/total').set(firebase.database.ServerValue.increment(1));
         database.ref('stats/daily/' + today).set(firebase.database.ServerValue.increment(1));
 
@@ -191,7 +196,214 @@
         });
     });
 
-    // 3. 실시간 채팅 불러오기 (undefined 오류 수정 및 전체 동기화)
+    // 3. 실시간 채팅 불러오기
     database.ref('chat_messages').limitToLast(50).on('value', (snapshot) => {
         const chatBox = document.getElementById('chatBox');
-        chatBox.innerHTML = '<div><strong style="color: #3498db;">시스템:</strong> 익명 채팅방에
+        chatBox.innerHTML = '<div><strong style="color: #3498db;">시스템:</strong> 익명 채팅방에 오신 것을 환영합니다!</div>';
+        
+        snapshot.forEach((childSnap) => {
+            const data = childSnap.val();
+            // 빈 데이터 방어 코드 적용
+            if(data && data.name && data.msg) {
+                let newChat = document.createElement('div');
+                newChat.innerHTML = `<strong>${data.name} :</strong> ${data.msg}`;
+                chatBox.appendChild(newChat);
+            }
+        });
+        chatBox.scrollTop = chatBox.scrollHeight;
+    });
+
+    // 번호 생성 로직
+    function getRandomLotto() {
+        let nums = [];
+        while(nums.length < 6) {
+            let n = Math.floor(Math.random() * 45) + 1;
+            if(!nums.includes(n)) nums.push(n);
+        }
+        return nums.sort((a,b) => a - b);
+    }
+
+    // [버튼 1] 분석하기 함수
+    function generateNumbers(isInitial = false) {
+        const container = document.getElementById('comboContainer');
+        if (isInitial) {
+            container.innerHTML = '';
+            labels.forEach((label, index) => {
+                const nums = getRandomLotto();
+                let ballsHtml = nums.map(n => `<div class="ball">${n}</div>`).join('');
+                container.innerHTML += `
+                    <div class="combo-row" id="row-${index}">
+                        <div class="row-label">${label}</div>
+                        <div class="balls-container" id="balls-${index}">${ballsHtml}</div>
+                        <label class="lock-container"><input type="checkbox" id="lock-${index}"> 🔒 고정</label>
+                    </div>`;
+            });
+        } else {
+            labels.forEach((label, index) => {
+                const isLocked = document.getElementById(`lock-${index}`).checked;
+                if (!isLocked) {
+                    const nums = getRandomLotto();
+                    let ballsHtml = nums.map(n => `<div class="ball">${n}</div>`).join('');
+                    document.getElementById(`balls-${index}`).innerHTML = ballsHtml;
+                }
+            });
+        }
+    }
+
+    // [버튼 2] 공유하기 함수
+    function shareCombination() {
+        let pName = document.getElementById('purchaserName').value.trim();
+        if(!pName) { alert('구매자 이름을 입력해주세요! (예: 신민수)'); return; }
+
+        let maskedName = pName.length > 1 ? pName.charAt(0) + "*".repeat(pName.length - 1) : pName + "*";
+        let comboText = '';
+        labels.forEach((label, index) => {
+            const balls = document.querySelectorAll(`#balls-${index} .ball`);
+            const nums = Array.from(balls).map(b => b.innerText).join(', ');
+            comboText += `${label}: ${nums}<br>`;
+        });
+        
+        database.ref('board_items').push({
+            title: `${maskedName} 님의 확정 조합 (방금 전)`,
+            combo: comboText,
+            timestamp: firebase.database.ServerValue.TIMESTAMP
+        });
+        
+        alert('확정된 5게임이 게시판에 공유되었습니다!');
+        document.getElementById('purchaserName').value = ''; 
+    }
+
+    // [버튼 3] 채팅만 기록 삭제 함수
+    function clearChat() {
+        let password = prompt("채팅 기록을 삭제하시겠습니까?\n관리자 비밀번호를 입력해주세요.");
+        if (password === "0732") {
+            database.ref('chat_messages').remove(); 
+            alert("채팅 기록이 성공적으로 삭제되었습니다.");
+        } else if (password !== null) {
+            alert("비밀번호가 틀렸습니다.");
+        }
+    }
+
+    // [버튼 4] 채팅 전송 함수
+    function sendChat() {
+        let nameInput = document.getElementById('chatName').value.trim();
+        let msgInput = document.getElementById('chatMsg').value.trim();
+        if(!nameInput || !msgInput) return;
+
+        let maskedName = nameInput.length > 1 ? nameInput.charAt(0) + "*".repeat(nameInput.length - 1) : nameInput + "*";
+        
+        database.ref('chat_messages').push({
+            name: maskedName, msg: msgInput, timestamp: firebase.database.ServerValue.TIMESTAMP
+        });
+        
+        document.getElementById('chatMsg').value = '';
+    }
+
+    // [버튼 5] 당첨 확인 함수
+    function checkWin() {
+        if(currentBoardData.length === 0) {
+            alert("공유된 조합이 없습니다!");
+            return;
+        }
+
+        let winners = { rank1: [], rank2: [], rank3: [], rank4: [], rank5: [] };
+        let totalWins = 0;
+
+        currentBoardData.forEach(item => {
+            let lines = item.combo.split('<br>');
+            let highestRank = 6; 
+            
+            let formattedLines = lines.map(line => {
+                if(!line.trim()) return '';
+                let parts = line.split(': ');
+                let label = parts[0];
+                let numsStr = parts[1].split(', ');
+                
+                let matchCount = 0;
+                let hasBonus = false;
+
+                let formattedNums = numsStr.map(n => {
+                    let num = parseInt(n);
+                    if(winNums.includes(num)) {
+                        matchCount++;
+                        return `<span class="hit-number">${num}</span>`; 
+                    }
+                    if(num === bonusNum) {
+                        hasBonus = true;
+                        return `<span class="bonus-number">${num}</span>`; 
+                    }
+                    return num;
+                });
+                
+                let rank = 0;
+                if(matchCount === 6) rank = 1;
+                else if(matchCount === 5 && hasBonus) rank = 2;
+                else if(matchCount === 5) rank = 3;
+                else if(matchCount === 4) rank = 4;
+                else if(matchCount === 3) rank = 5;
+
+                if(rank > 0 && rank < highestRank) highestRank = rank;
+                
+                let rankText = '';
+                if(rank === 1) rankText = ' <strong style="color:red;">[🎉 1등 당첨!!]</strong>';
+                else if(rank === 2) rankText = ' <strong style="color:#e67e22;">[🎊 2등 당첨!]</strong>';
+                else if(rank === 3) rankText = ' <strong style="color:#f1c40f;">[3등]</strong>';
+                else if(rank === 4) rankText = ' <strong style="color:#3498db;">[4등]</strong>';
+                else if(rank === 5) rankText = ' <strong style="color:#2ecc71;">[5등]</strong>';
+
+                return `${label}: ${formattedNums.join(', ')}${rankText}`;
+            });
+
+            document.getElementById(`combo-${item.key}`).innerHTML = formattedLines.join('<br>');
+
+            let nameMatch = item.title.match(/^(.*?) 님의/);
+            let name = nameMatch ? nameMatch[1] : '익명';
+
+            if(highestRank === 1) winners.rank1.push(name);
+            else if(highestRank === 2) winners.rank2.push(name);
+            else if(highestRank === 3) winners.rank3.push(name);
+            else if(highestRank === 4) winners.rank4.push(name);
+            else if(highestRank === 5) winners.rank5.push(name);
+
+            if(highestRank <= 5) totalWins++;
+        });
+
+        const hallOfFame = document.getElementById('hallOfFame');
+        const winnerListContent = document.getElementById('winnerListContent');
+        
+        hallOfFame.style.display = 'block'; 
+        if(totalWins > 0) {
+            let html = '<ul>';
+            if(winners.rank1.length) html += `<li><strong>🥇 1등:</strong> ${winners.rank1.join(', ')} 님</li>`;
+            if(winners.rank2.length) html += `<li><strong>🥈 2등:</strong> ${winners.rank2.join(', ')} 님</li>`;
+            if(winners.rank3.length) html += `<li><strong>🥉 3등:</strong> ${winners.rank3.join(', ')} 님</li>`;
+            if(winners.rank4.length) html += `<li><strong>4등:</strong> ${winners.rank4.join(', ')} 님</li>`;
+            if(winners.rank5.length) html += `<li><strong>5등:</strong> ${winners.rank5.join(', ')} 님</li>`;
+            html += '</ul>';
+            winnerListContent.innerHTML = html;
+        } else {
+            winnerListContent.innerHTML = '<p style="margin:0; color:#856404;">아쉽게도 이번 주 당첨자가 없습니다. 다음 주를 기약하세요!</p>';
+        }
+
+        let popupMsg = "🎯 당첨 결과 요약 🎯\n\n";
+        if(winners.rank1.length) popupMsg += `🥇 1등: ${winners.rank1.join(', ')} 님\n`;
+        if(winners.rank2.length) popupMsg += `🥈 2등: ${winners.rank2.join(', ')} 님\n`;
+        if(winners.rank3.length) popupMsg += `🥉 3등: ${winners.rank3.join(', ')} 님\n`;
+        if(winners.rank4.length) popupMsg += `4등: ${winners.rank4.length}명\n`;
+        if(winners.rank5.length) popupMsg += `5등: ${winners.rank5.length}명\n`;
+        
+        if(totalWins === 0) popupMsg += "당첨자가 없습니다. 다음 기회를 노려보세요!";
+        
+        setTimeout(() => { alert(popupMsg); }, 500);
+    }
+
+    // 실행 시작!
+    document.addEventListener("DOMContentLoaded", function() {
+        setupVisitors();
+        generateNumbers(true);
+    });
+
+</script>
+
+</body>
+</html>
