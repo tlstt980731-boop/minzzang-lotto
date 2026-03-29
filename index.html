@@ -141,7 +141,6 @@
     const labels = ['A', 'B', 'C', 'D', 'E'];
     let currentBoardData = []; 
 
-    // 시간 포맷 함수 (MM월 DD일 HH:mm)
     function getFormattedDate(timestamp) {
         let d = timestamp ? new Date(timestamp) : new Date();
         let month = (d.getMonth() + 1).toString().padStart(2, '0');
@@ -151,7 +150,6 @@
         return `[${month}월 ${day}일 ${hour}:${min}]`;
     }
 
-    // 1. 방문자 통계 업데이트
     function setupVisitors() {
         let d = new Date();
         const today = d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate();
@@ -174,7 +172,7 @@
         database.ref('stats/daily/' + today).on('value', snap => { document.getElementById('dailyVisitors').innerText = snap.val() || 1; });
     }
 
-    // 2. 실시간 게시판 불러오기 ("방금 전" 삭제 버전)
+    // 2. 게시판 데이터 불러오기 로직 수정
     database.ref('board_items').orderByChild('timestamp').limitToLast(50).on('value', (snapshot) => {
         const boardList = document.getElementById('lottoList');
         boardList.innerHTML = '';
@@ -189,11 +187,15 @@
         items.reverse().forEach(item => {
             currentBoardData.push(item);
             let timeStr = getFormattedDate(item.timestamp);
+            
+            // [중요] 기존 제목에 포함된 " (방금 전)" 글자를 강제로 삭제하는 로직 추가
+            let cleanTitle = item.title.replace(" (방금 전)", "");
+            
             let div = document.createElement('div');
             div.className = 'board-item';
             div.innerHTML = `
                 <div class="board-item-title">
-                    ${item.title} 
+                    ${cleanTitle} 
                     <span class="board-item-time">${timeStr}</span>
                 </div>
                 <div class="board-item-combo" id="combo-${item.key}">${item.combo}</div>`;
@@ -201,7 +203,6 @@
         });
     });
 
-    // 3. 실시간 채팅 불러오기
     database.ref('chat_messages').limitToLast(50).on('value', (snapshot) => {
         const chatBox = document.getElementById('chatBox');
         chatBox.innerHTML = '<div><strong style="color: #3498db;">시스템:</strong> 익명 채팅방에 오신 것을 환영합니다!</div>';
@@ -261,6 +262,8 @@
             const nums = Array.from(balls).map(b => b.innerText).join(', ');
             comboText += `${label}: ${nums}<br>`;
         });
+        
+        // 새로 저장할 때부터는 아예 " (방금 전)"을 빼고 저장
         database.ref('board_items').push({
             title: `${maskedName} 님의 확정 조합`,
             combo: comboText,
